@@ -1,0 +1,31 @@
+# Transformers for Lagrangian Data Assimilation
+Build transformer-based architectures for performing data assimilation tasks
+
+# To build up a conda environment from scratch, I did:
+```bash
+$ conda create --name transformers python=3.10
+$ conda install pytorch torchvision -c pytorch
+$ conda install matplotlib
+$ conda install -c conda-forge pytorch-lightning 
+$ conda install -c conda-forge wandb 
+$ conda install -c conda-forge torchdiffeq
+```
+
+# Then I exported this conda environment for reproducibility:
+```bash
+$ conda env export > transformers.yml
+```
+
+# If you are using this repo, please install dependencies by simply running (the above should not be needed!)
+```bash
+$ conda env create -f transformers.yml
+```
+
+# Set up a wandb account by following instructions here:
+[wandb](https://wandb.ai/site)
+
+# To perform preliminary training run of transformer to learns a mapping from a trajectory of L63's first coordinate to its third coordinate, run:
+```bash
+$ wandb login
+$ python l63assimTRANS.py
+```
