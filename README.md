@@ -26,6 +26,7 @@ $ conda env create -f transformers.yml
 
 # To perform preliminary training run of transformer to learns a mapping from a trajectory of L63's first coordinate to its third coordinate, run:
 ```bash
+$ conda activate transformers
 $ wandb login
 $ python l63assimTRANS.py
 ```

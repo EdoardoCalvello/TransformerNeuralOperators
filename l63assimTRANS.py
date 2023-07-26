@@ -199,7 +199,7 @@ class Lorenz63Dataset(Dataset):
         # use traj from the 1st component of L63 as input
         self.x = xyz[:, :, 0:1].permute(1, 0, 2)
         # use traj from the 2nd component of L63 as output (should be easier than 3rd comp)
-        self.y = xyz[:, :, 1:2].permute(1, 0, 2)
+        self.y = xyz[:, :, 2:3].permute(1, 0, 2)
         # self.x, self.y are both: (n_traj (size), Seq_len, dim_state)
 
         #normalize data
@@ -253,7 +253,7 @@ all_param_dict = {k: v for d in list_of_dicts for k, v in d.items()}
 
 
 # Initialize WandB logger
-wandb.init(project="lorenz-63-training-transformer-I-v2", config=all_param_dict)
+wandb.init(project="lorenz-63-training-transformer-I-v2_x-Predicts-z", config=all_param_dict)
 wandb_logger = WandbLogger()
 
 # Load the datasets
