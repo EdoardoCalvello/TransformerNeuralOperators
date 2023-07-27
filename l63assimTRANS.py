@@ -26,6 +26,7 @@ class TransformerEncoder(pl.LightningModule):
                  use_transformer=True,
                  use_positional_encoding=True,
                  activation='relu',
+                 monitor_metric='train_loss',
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
         super(TransformerEncoder, self).__init__()
         self.d_model = d_model
@@ -33,6 +34,7 @@ class TransformerEncoder(pl.LightningModule):
         self.max_sequence_length = max_sequence_length
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
+        self.monitor_metric = monitor_metric
 
         self.set_positional_encoding()
 
@@ -127,6 +129,38 @@ class TransformerEncoder(pl.LightningModule):
             plt.close()
             os.remove("scatter_plot.png")
 
+            # compute value of each encoder layer sequentially
+            x_arange = torch.arange(0, x.shape[1], 1)
+            # choose 3 random hidden dimensions to plot throughout
+            idx_dim = torch.randint(0, self.d_model, (3,))
+            plt.figure()
+            fig, axs = plt.subplots(nrows=len(idx_dim), ncols=1, figsize=(10, 6), sharex=True)
+
+            x_layer_output = self.linear_in(x[idx])
+            for j, id in enumerate(idx_dim):
+                axs[j].set_title('Embedding dimension {} over layer depth'.format(id))
+                axs[j].plot(x_arange,
+                            x_layer_output.detach().cpu().numpy()[:,:,id].squeeze(),
+                            linewidth=3, alpha=0.8, label='Layer {}'.format(0),
+                            color=plt.cm.viridis(0) )
+            for i, layer in enumerate(self.encoder.layers):
+                x_layer_output = layer(x_layer_output)
+                # Plot the output of this layer
+                for j, id in enumerate(idx_dim):
+                    axs[j].plot(x_arange, 
+                                x_layer_output.detach().cpu().numpy()[:,:,id].squeeze(), 
+                                linewidth=3, alpha=0.8, label=f'Layer {i+1}',
+                                color=plt.cm.viridis((i+1) / (len(self.encoder.layers)) ))
+
+            axs[0].legend()
+            plt.subplots_adjust(hspace=0.5)
+            fig.suptitle('Evolution of the Encoder Layers')
+            plt.savefig("encoder_layer_plot.png")
+            wandb.log({"Encoder Layer Plot": wandb.Image("encoder_layer_plot.png")})
+            plt.close()
+            os.remove("encoder_layer_plot.png")
+
+
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -150,7 +184,7 @@ class TransformerEncoder(pl.LightningModule):
             # rate after every epoch/step.
             "frequency": 1,
             # Metric to to monitor for schedulers like `ReduceLROnPlateau`
-            "monitor": "train_loss",  # "val_loss",
+            "monitor": self.monitor_metric,  # "val_loss",
             # If set to `True`, will enforce that the value specified 'monitor'
             # is available when the scheduler is updated, thus stopping
             # training if not found. If set to `False`, it will only produce a warning
@@ -198,7 +232,7 @@ class Lorenz63Dataset(Dataset):
         xyz = odeint(lorenz_system, xyz0, t)
         # use traj from the 1st component of L63 as input
         self.x = xyz[:, :, 0:1].permute(1, 0, 2)
-        # use traj from the 2nd component of L63 as output (should be easier than 3rd comp)
+        # use traj from the 3rd component of L63 as output
         self.y = xyz[:, :, 2:3].permute(1, 0, 2)
         # self.x, self.y are both: (n_traj (size), Seq_len, dim_state)
 
@@ -227,15 +261,15 @@ data_hyperparams = {'input_dim': 1,
 # set model hyperparameters
 model_hyperparams = {'input_dim': 1,
                         'output_dim': 1,
+                        'monitor_metric': 'val_loss',
                         'use_transformer': True,
                         'use_positional_encoding': True,
-                        'd_model': 64,
-                        'nhead': 2,
-                        'num_layers': 2,
-                        'learning_rate': 0.01,
-                        'dropout': 0.1,
-                        # 'norm_first': True,
-                        'dim_feedforward': 64,
+                        'd_model': 128,
+                        'nhead': 4,
+                        'num_layers': 6,
+                        'learning_rate': 0.001,
+                        'dropout': 0,
+                        'dim_feedforward': 128,
                         'activation': 'gelu',
                         }
 

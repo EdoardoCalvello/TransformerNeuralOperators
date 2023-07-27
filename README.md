@@ -4,6 +4,7 @@ Build transformer-based architectures for performing data assimilation tasks
 # To build up a conda environment from scratch, I did:
 ```bash
 $ conda create --name transformers python=3.10
+$ conda activate transformers
 $ conda install pytorch torchvision -c pytorch
 $ conda install matplotlib
 $ conda install -c conda-forge pytorch-lightning 
