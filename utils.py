@@ -1,4 +1,14 @@
 import numpy as np
+import itertools
+
+def dict_combiner(mydict):
+    if mydict:
+        keys, values = zip(*mydict.items())
+        experiment_list = [dict(zip(keys, v))
+                           for v in itertools.product(*values)]
+    else:
+        experiment_list = [{}]
+    return experiment_list
 
 class MaxMinNormalizer(object):  
     def __init__(self, x, eps=1e-5):  

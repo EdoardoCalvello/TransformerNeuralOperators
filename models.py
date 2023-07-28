@@ -157,8 +157,8 @@ class TransformerEncoder(pl.LightningModule):
             plt.savefig("encoder_layer_plot.png")
             wandb.log({"Encoder Layer Plot": wandb.Image(
                 "encoder_layer_plot.png")})
-            plt.close()
             os.remove("encoder_layer_plot.png")
+            plt.close('all')
 
         return loss
 
