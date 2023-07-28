@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau, StepLR
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
@@ -13,9 +13,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 import matplotlib.pyplot as plt
 import wandb
 
-from torchdiffeq import odeint
-
-from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer
+from datasets import DynamicsDataset
 
 from pdb import set_trace as bp
 
@@ -200,55 +198,6 @@ class TransformerEncoder(pl.LightningModule):
             "lr_scheduler": config,
             }
 
-# Define a custom dataset for Lorenz63 trajectories
-class Lorenz63Dataset(Dataset):
-    def __init__(self, size=1000, length=100, dt=0.01, sigma=10, rho=28, beta=8/3):
-        self.size = size
-        self.length = length
-        self.dt = dt
-        self.sigma = sigma
-        self.rho = rho
-        self.beta = beta
-
-        self.generate_data()
-
-    def generate_data(self):
-        # Size, Seq_len, batch_size, input_dim
-
-        x0 = torch.empty(self.size, 1).uniform_(-15, 15)
-        y0 = torch.empty(self.size, 1).uniform_(-15, 15)
-        z0 = torch.empty(self.size, 1).uniform_(0, 40)
-        xyz0 = torch.cat([x0, y0, z0], dim=1)
-
-        t = torch.arange(0, self.length * self.dt, self.dt)
-
-        def lorenz_system(t, xyz):
-            x, y, z = xyz[:, 0:1], xyz[:, 1:2], xyz[:, 2:3]
-            dx = self.sigma * (y - x)
-            dy = x * (self.rho - z) - y
-            dz = x * y - self.beta * z
-            return torch.cat([dx, dy, dz], dim=1)
-
-        xyz = odeint(lorenz_system, xyz0, t)
-        # use traj from the 1st component of L63 as input
-        self.x = xyz[:, :, 0:1].permute(1, 0, 2)
-        # use traj from the 3rd component of L63 as output
-        self.y = xyz[:, :, 2:3].permute(1, 0, 2)
-        # self.x, self.y are both: (n_traj (size), Seq_len, dim_state)
-
-        #normalize data
-        self.x_normalizer = UnitGaussianNormalizer(self.x.reshape(-1, self.x.shape[-1]).data.numpy())
-        self.y_normalizer = UnitGaussianNormalizer(self.y.reshape(-1, self.y.shape[-1]).data.numpy())
-        self.x = self.x_normalizer.encode(self.x)
-        self.y = self.y_normalizer.encode(self.y)
-
-    def __len__(self):
-        return self.size
-
-    def __getitem__(self, idx):
-        return self.x[idx], self.y[idx]
-
-
 # Set data hyperparameters
 data_hyperparams = {'input_dim': 1,
                     'output_dim': 1,
@@ -256,6 +205,10 @@ data_hyperparams = {'input_dim': 1,
                     'seq_len': 100,
                     'sample_rate': 0.01,
                     'batch_size': 64,
+                    'dyn_sys_name': 'Rossler',
+                    # 'dyn_sys_params': {'sigma': 10, 'rho': 28, 'beta': 8/3},
+                    'input_dim': 1,
+                    'output_dim': 3,
                     }
 
 # set model hyperparameters
@@ -265,10 +218,10 @@ model_hyperparams = {'input_dim': 1,
                         'use_transformer': True,
                         'use_positional_encoding': True,
                         'd_model': 128,
-                        'nhead': 4,
+                        'nhead': 8,
                         'num_layers': 6,
                         'learning_rate': 0.001,
-                        'dropout': 0,
+                        'dropout': 0.01,
                         'dim_feedforward': 128,
                         'activation': 'gelu',
                         }
@@ -291,9 +244,9 @@ wandb.init(project="lorenz-63-training-transformer-I-v2_x-Predicts-z", config=al
 wandb_logger = WandbLogger()
 
 # Load the datasets
-train_dataset = Lorenz63Dataset(size=data_hyperparams['n_trajectories']['train'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'])
-val_dataset = Lorenz63Dataset(size=data_hyperparams['n_trajectories']['val'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'])
-test_dataset = Lorenz63Dataset(size=data_hyperparams['n_trajectories']['test'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'])
+train_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['train'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'], dynsys=data_hyperparams['dyn_sys_name'], input_dim=data_hyperparams['input_dim'], output_dim=data_hyperparams['output_dim'])
+val_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['val'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'], dynsys=data_hyperparams['dyn_sys_name'], input_dim=data_hyperparams['input_dim'], output_dim=data_hyperparams['output_dim'])
+test_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['test'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'], dynsys=data_hyperparams['dyn_sys_name'], input_dim=data_hyperparams['input_dim'], output_dim=data_hyperparams['output_dim'])
 train_loader = DataLoader(
     train_dataset, batch_size=data_hyperparams['batch_size'], shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=data_hyperparams['batch_size'])
