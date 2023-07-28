@@ -1,18 +1,11 @@
-# import os
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
-# import torch.optim as optim
-# from torch.optim.lr_scheduler import ReduceLROnPlateau, StepLR
+# import deep learning modules
 from torch.utils.data import DataLoader
-
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor
-
-import matplotlib.pyplot as plt
 import wandb
 
+# import custom modules
 from datasets import DynamicsDataset
 from models import TransformerEncoder
 
