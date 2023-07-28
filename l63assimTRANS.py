@@ -25,6 +25,8 @@ class TransformerEncoder(pl.LightningModule):
                  use_positional_encoding=True,
                  activation='relu',
                  monitor_metric='train_loss',
+                 lr_scheduler_params={'patience': 3,
+                                      'factor': 0.5},
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
         super(TransformerEncoder, self).__init__()
         self.d_model = d_model
@@ -33,6 +35,7 @@ class TransformerEncoder(pl.LightningModule):
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
         self.monitor_metric = monitor_metric
+        self.lr_scheduler_params = lr_scheduler_params
 
         self.set_positional_encoding()
 
@@ -172,7 +175,7 @@ class TransformerEncoder(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         config = {
             # REQUIRED: The scheduler instance
-            "scheduler": ReduceLROnPlateau(optimizer, factor=0.5, patience=5, verbose=True),
+            "scheduler": ReduceLROnPlateau(optimizer, verbose=True, **self.lr_scheduler_params),
             # The unit of the scheduler's step size, could also be 'step'.
             # 'epoch' updates the scheduler on epoch end whereas 'step'
             # updates it after a optimizer update.
@@ -215,6 +218,8 @@ data_hyperparams = {'input_dim': 1,
 model_hyperparams = {'input_dim': 1,
                         'output_dim': 1,
                         'monitor_metric': 'val_loss',
+                        'lr_scheduler_params': {'patience': 3,
+                                                'factor': 0.5},
                         'use_transformer': True,
                         'use_positional_encoding': True,
                         'd_model': 128,
