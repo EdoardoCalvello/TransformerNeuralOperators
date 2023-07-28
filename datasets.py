@@ -69,14 +69,15 @@ class Rossler(DynSys):
         return xz0
 
 class DynamicsDataset(Dataset):
-    def __init__(self, size=1000, length=100, dt=0.01, params={},
-                 dynsys='Lorenz63',
-                 input_dim=1, output_dim=3):
+    def __init__(self, size=1000, seq_len=100, sample_rate=0.01, params={},
+                 dyn_sys_name='Lorenz63',
+                 input_dim=1, output_dim=3,
+                 **kwargs):
         '''use params to pass in parameters for the dynamical system'''
         self.size = size
-        self.length = length
-        self.dt = dt
-        self.dynsys = load_dyn_sys_class(dynsys)(**params)
+        self.seq_len = seq_len
+        self.sample_rate = sample_rate
+        self.dynsys = load_dyn_sys_class(dyn_sys_name)(**params)
         self.input_dim = input_dim
         self.output_dim = output_dim
 
@@ -84,7 +85,7 @@ class DynamicsDataset(Dataset):
     
     def generate_data(self):
         # Size, Seq_len, batch_size, input_dim
-        t = torch.arange(0, self.length * self.dt, self.dt)
+        t = torch.arange(0, self.seq_len * self.sample_rate, self.sample_rate)
         xyz0 = self.dynsys.get_inits(self.size)
         xyz = odeint(self.dynsys.rhs, xyz0, t)
 

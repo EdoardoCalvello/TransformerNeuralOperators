@@ -244,9 +244,14 @@ wandb.init(project="lorenz-63-training-transformer-I-v2_x-Predicts-z", config=al
 wandb_logger = WandbLogger()
 
 # Load the datasets
-train_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['train'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'], dynsys=data_hyperparams['dyn_sys_name'], input_dim=data_hyperparams['input_dim'], output_dim=data_hyperparams['output_dim'])
-val_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['val'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'], dynsys=data_hyperparams['dyn_sys_name'], input_dim=data_hyperparams['input_dim'], output_dim=data_hyperparams['output_dim'])
-test_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['test'], length=data_hyperparams['seq_len'], dt=data_hyperparams['sample_rate'], dynsys=data_hyperparams['dyn_sys_name'], input_dim=data_hyperparams['input_dim'], output_dim=data_hyperparams['output_dim'])
+train_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['train'],
+                                **data_hyperparams)
+val_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['val'], 
+                              **data_hyperparams)
+test_dataset = DynamicsDataset(size=data_hyperparams['n_trajectories']['test'], 
+                               **data_hyperparams)
+
+# Create PyTorch dataloaders
 train_loader = DataLoader(
     train_dataset, batch_size=data_hyperparams['batch_size'], shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=data_hyperparams['batch_size'])
