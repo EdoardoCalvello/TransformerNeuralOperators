@@ -2,7 +2,7 @@
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import LearningRateMonitor
+from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 import wandb
 
 # Import custom modules
@@ -108,11 +108,18 @@ class Runner:
         # Initialize the model
         model = TransformerEncoder(**self.model_hyperparams)
 
+        # Set callbacks for trainer (lr monitor, early stopping)
+
         # Create a PyTorch Lightning trainer with the WandbLogger
         # used this link to find LRmonitor: https://community.wandb.ai/t/how-to-log-the-learning-rate-with-pytorch-lightning-when-using-a-scheduler/3964/5
         lr_monitor = LearningRateMonitor(logging_interval='step')
+
+        # Create an early stopping callback
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=True)
+
+        # Initialize the trainer
         trainer = pl.Trainer(logger=wandb_logger, callbacks=[
-                            lr_monitor], **self.trainer_hyperparams)
+            lr_monitor, early_stopping], **self.trainer_hyperparams)
 
         # Train the model
         trainer.fit(model, train_loader, val_loader)
