@@ -55,7 +55,7 @@ class TransformerEncoder(pl.LightningModule):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)  # Add a batch dimension
-        self.pe = pe  # (1, max_seq_len, d_model)
+        self.register_buffer('pe', pe)
 
     def forward(self, x):
         # print(x.shape) # (batch_size, seq_len, dim_state)
