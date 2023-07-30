@@ -10,7 +10,7 @@
 #SBATCH --mem-per-cpu=64G           # Memory required per job
 
 # Load any required modules (if needed)
-module load cuda/10.1
+module load cuda/11.8
 
 # Activate the virtual environment (if needed)
 # source /path/to/your/virtualenv/bin/activate

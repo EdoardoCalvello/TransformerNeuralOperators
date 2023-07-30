@@ -39,6 +39,9 @@ exp_dict = {
 
 exp_list = dict_combiner(exp_dict)
 
+# Print the length of the experiment list
+print('Number of experiments to sweep: ', len(exp_list))
+
 # run the experiment
 Runner(**exp_list[args.id])
 
