@@ -17,10 +17,11 @@ $ conda install -c conda-forge torchdiffeq
 $ conda env export > transformers.yml
 ```
 
-# If you are using this repo, please install dependencies by simply running (the above should not be needed!)
+# If you are using this repo, please first try to install dependencies by simply running:
 ```bash
 $ conda env create -f transformers.yml
 ```
+- Note: This did not work for setting up on caltech HPC, so I used the above conda commands to build up from scratch.
 
 # Set up a wandb account by following instructions here:
 [wandb](https://wandb.ai/site)

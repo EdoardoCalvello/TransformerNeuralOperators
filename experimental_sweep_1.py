@@ -5,7 +5,7 @@ import argparse
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
 parser.add_argument('--project_name', type=str, default='transformer-sweep1')
-parser.add_argument('--n', type=int, default=0)
+parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
 # build a dict of experimental conditions
@@ -32,7 +32,7 @@ exp_dict = {
     # model settings
     'd_model': [128, 1024],
     'nhead': [2, 8],
-    'num_layers': [2, 6],
+    'num_layers': [6],
     'dim_feedforward': [128, 1024],
     'activation': ['gelu'],
 }
@@ -40,7 +40,7 @@ exp_dict = {
 exp_list = dict_combiner(exp_dict)
 
 # run the experiment
-Runner(**exp_list[args.n])
+Runner(**exp_list[args.id])
 
 
 
