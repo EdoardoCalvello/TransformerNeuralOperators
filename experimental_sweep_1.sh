@@ -10,13 +10,13 @@
 #SBATCH --mem-per-cpu=64G           # Memory required per job
 
 # Load any required modules (if needed)
-# module load your_module_name
+module load cuda/10.1
 
 # Activate the virtual environment (if needed)
 # source /path/to/your/virtualenv/bin/activate
 
 # Change to the working directory where your code is located
-cd /path/to/your/code_directory
+# cd /path/to/your/code_directory
 
 # Run your Python script with the GPU device specified (assuming your script is named 'your_script.py')
 python experimental_sweep_1.py --id $SLURM_ARRAY_TASK_ID --project_name test_sweep
