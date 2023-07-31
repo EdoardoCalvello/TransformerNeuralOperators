@@ -19,4 +19,4 @@ module load cuda/11.8
 # cd /path/to/your/code_directory
 
 # Run your Python script with the GPU device specified (assuming your script is named 'your_script.py')
-python experimental_sweep_1.py --id $SLURM_ARRAY_TASK_ID --project_name test_sweep1.1
+python experimental_sweep_1.py --id $SLURM_ARRAY_TASK_ID --project_name test_sweep1.2

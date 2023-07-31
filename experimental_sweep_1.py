@@ -17,7 +17,7 @@ exp_dict = {
     'n_trajectories_test': [500],
     'seq_len': [100],
     'sample_rate': [0.01],
-    'batch_size': [1000, 5000],
+    'batch_size': [32],
     'dyn_sys_name': ['Rossler','Lorenz63'],
     'input_dim_data': [1],
     'output_dim_data': [3],
@@ -30,10 +30,10 @@ exp_dict = {
     'max_epochs': [300],
     'monitor_metric': ['val_loss'],
     # model settings
-    'd_model': [128, 1024],
-    'nhead': [8],
+    'd_model': [128, 512, 1024],
+    'nhead': [2, 8, 12],
     'num_layers': [6],
-    'dim_feedforward': [128, 1024],
+    'dim_feedforward': [128, 1024, 2048],
     'activation': ['gelu'],
 }
 
