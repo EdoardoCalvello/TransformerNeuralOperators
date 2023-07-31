@@ -1,6 +1,7 @@
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchdiffeq import odeint
+import pytorch_lightning as pl
 
 from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer
 
@@ -108,3 +109,60 @@ class DynamicsDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.x[idx], self.y[idx]
+
+class DynamicsDataModule(pl.LightningDataModule):
+    def __init__(self,
+            batch_size=64,
+            size={'train': 10000, 'val': 500, 'test': 500},
+            seq_len={'train': 100, 'val': 100, 'test': 100},
+            sample_rate={'train': 0.01, 'val': 0.01, 'test': 0.01},
+            params={},
+            dyn_sys_name='Lorenz63',
+            input_dim=1, output_dim=3,
+            **kwargs
+            ):
+        super().__init__()
+        self.batch_size = batch_size
+        self.size = size
+        self.seq_len = seq_len
+        self.sample_rate = sample_rate
+        self.params = params
+        self.dyn_sys_name = dyn_sys_name
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+
+
+    def setup(self, stage: str):
+        # Assign train/val datasets for use in dataloaders
+        self.train = DynamicsDataset(size=self.size['train'],
+                                        seq_len=self.seq_len['train'],
+                                        sample_rate=self.sample_rate['train'],
+                                        params=self.params,
+                                        dyn_sys_name=self.dyn_sys_name,
+                                        input_dim=self.input_dim,
+                                        output_dim=self.output_dim)
+
+        self.val = DynamicsDataset(size=self.size['val'],
+                                        seq_len=self.seq_len['val'],
+                                        sample_rate=self.sample_rate['val'],
+                                        params=self.params,
+                                        dyn_sys_name=self.dyn_sys_name,
+                                        input_dim=self.input_dim,
+                                        output_dim=self.output_dim)
+
+        self.test = DynamicsDataset(size=self.size['test'],
+                                        seq_len=self.seq_len['test'],
+                                        sample_rate=self.sample_rate['test'],
+                                        params=self.params,
+                                        dyn_sys_name=self.dyn_sys_name,
+                                        input_dim=self.input_dim,
+                                        output_dim=self.output_dim)
+
+    def train_dataloader(self):
+        return DataLoader(self.train, batch_size=self.batch_size)
+
+    def val_dataloader(self):
+        return DataLoader(self.val, batch_size=self.batch_size)
+
+    def test_dataloader(self):
+        return DataLoader(self.test, batch_size=self.batch_size)
