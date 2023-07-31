@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=sweep_1.1        # Name of the job
-#SBATCH --output=output_%A_%a.txt       # Output file for each job array task
-#SBATCH --error=error_%A_%a.txt         # Error file for each job array task
+#SBATCH --output=slurm_logs/output_%A_%a.txt       # Output file for each job array task
+#SBATCH --error=slurm_logs/error_%A_%a.txt         # Error file for each job array task
 #SBATCH --array=0-63                   # Number of tasks in the array (e.g., 10 jobs)
 #SBATCH --gres=gpu:1                   # Number of GPUs to allocate per job (1 GPU per job)
 #SBATCH --time=02:00:00                # Maximum runtime for each job (hh:mm:ss)
