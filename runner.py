@@ -85,7 +85,7 @@ class Runner:
         
         self.other_hyperparams = {'seed': seed,}
 
-        seed_everything(seed)
+        seed_everything(42, workers=True)
         self.run()
 
     def run(self):
