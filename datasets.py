@@ -118,7 +118,7 @@ class DynamicsDataModule(pl.LightningDataModule):
             sample_rate={'train': 0.01, 'val': 0.01, 'test': 0.01},
             params={},
             dyn_sys_name='Lorenz63',
-            input_dim=1, output_dim=3,
+            input_dim_data=1, output_dim_data=3,
             **kwargs
             ):
         super().__init__()
@@ -128,8 +128,8 @@ class DynamicsDataModule(pl.LightningDataModule):
         self.sample_rate = sample_rate
         self.params = params
         self.dyn_sys_name = dyn_sys_name
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.input_dim = input_dim_data
+        self.output_dim = output_dim_data
 
 
     def setup(self, stage: str):

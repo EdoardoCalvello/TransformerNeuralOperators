@@ -54,8 +54,8 @@ class Runner:
                                                  'test': sample_rate,},
                                  'batch_size': batch_size,
                                  'dyn_sys_name': dyn_sys_name,
-                                 'input_dim': input_dim_data,
-                                 'output_dim': output_dim_data,
+                                 'input_dim_data': input_dim_data,
+                                 'output_dim_data': output_dim_data,
                                  }
         
         self.model_hyperparams = {'input_dim': input_dim_model,
@@ -111,8 +111,8 @@ class Runner:
         # aggregate all callbacks
         callbacks = [lr_monitor,
                      early_stopping,
-                     BatchSizeFinder(init_val=32),
-                     LearningRateFinder(min_lr=1e-4, max_lr=1e-2, num_training_steps=20),
+                    #  BatchSizeFinder(init_val=32),
+                    #  LearningRateFinder(min_lr=1e-4, max_lr=1e-2, num_training_steps=20),
                      ]
 
         # Initialize the trainer
