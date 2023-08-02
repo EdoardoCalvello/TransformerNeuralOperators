@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../../')
 from runner import Runner
 from utils import dict_combiner
 import argparse
@@ -12,12 +14,12 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'n_trajectories_train': [10000],
+    'n_trajectories_train': [100, 1000, 10000],
     'n_trajectories_val': [500],
     'n_trajectories_test': [500],
-    'seq_len': [100],
+    'seq_len': [20, 100, 200, 500],
     'sample_rate': [0.01],
-    'batch_size': [16, 64, 256],
+    'batch_size': [64],
     'dyn_sys_name': ['Lorenz63'],
     'input_dim_data': [1],
     'output_dim_data': [3],
@@ -30,10 +32,10 @@ exp_dict = {
     'max_epochs': [300],
     'monitor_metric': ['val_loss'],
     # model settings
-    'd_model': [512],
+    'd_model': [128],
     'nhead': [8],
     'num_layers': [6],
-    'dim_feedforward': [2048],
+    'dim_feedforward': [128],
     'activation': ['gelu'],
 }
 

@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../../')
 from runner import Runner
 from utils import dict_combiner
 import argparse
@@ -17,23 +19,23 @@ exp_dict = {
     'n_trajectories_test': [500],
     'seq_len': [100],
     'sample_rate': [0.01],
-    'batch_size': [32],
-    'dyn_sys_name': ['Rossler','Lorenz63'],
+    'batch_size': [16, 64, 256],
+    'dyn_sys_name': ['Lorenz63'],
     'input_dim_data': [1],
     'output_dim_data': [3],
     # optimizer settings
-    'learning_rate': [1e-3, 1e-4],
-    'dropout': [1e-2, 1e-4],
+    'learning_rate': [1e-3],
+    'dropout': [1e-4],
     'lr_scheduler_params': [
                             {'patience': 2, 'factor': 0.5},
                              ],
     'max_epochs': [300],
     'monitor_metric': ['val_loss'],
     # model settings
-    'd_model': [128, 512, 1024],
-    'nhead': [2, 8, 12],
+    'd_model': [512],
+    'nhead': [8],
     'num_layers': [6],
-    'dim_feedforward': [128, 1024, 2048],
+    'dim_feedforward': [2048],
     'activation': ['gelu'],
 }
 

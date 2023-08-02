@@ -71,6 +71,7 @@ class Runner:
                                   'dropout': dropout,
                                   'dim_feedforward': dim_feedforward,
                                   'activation': activation,
+                                  'max_sequence_length': seq_len,
                                   }
         
         self.trainer_hyperparams = {'max_epochs': max_epochs,
