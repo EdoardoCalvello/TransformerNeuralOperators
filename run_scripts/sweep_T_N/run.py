@@ -21,8 +21,8 @@ exp_dict = {
     'sample_rate': [0.01],
     'batch_size': [64],
     'dyn_sys_name': ['Lorenz63'],
-    'input_dim_data': [1],
-    'output_dim_data': [3],
+    'input_inds': [[0]],
+    'output_inds': [[2]],
     # optimizer settings
     'learning_rate': [1e-3],
     'dropout': [1e-4],

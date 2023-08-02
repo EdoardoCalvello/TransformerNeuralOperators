@@ -83,9 +83,10 @@ class TransformerEncoder(pl.LightningModule):
         self.log_gradient_norms(tag='afterBackward')
 
     def on_before_optimizer_step(self, optimizer):
-        # Compute the 2-norm for each layer
+        # Compute the 2-norm for each layer and its gradient
         # If using mixed precision, the gradients are already unscaled here
         self.log_gradient_norms(tag='beforeOptimizer')
+        self.log_parameter_norms(tag='beforeOptimizer')
 
     def log_gradient_norms(self, tag=''):
         norm_type = 2.0
@@ -96,6 +97,14 @@ class TransformerEncoder(pl.LightningModule):
                 self.log(f"grad_norm/{tag}/{name}", grad_norm,
                          on_step=False, on_epoch=True, prog_bar=False)
 
+    def log_parameter_norms(self, tag=''):
+        norm_type = 2.0
+        for name, param in self.named_parameters():
+            param_norm = param.detach().norm(norm_type)
+            name = name.replace('.', '_')
+            self.log(f"param_norm/{tag}/{name}", param_norm,
+                     on_step=False, on_epoch=True, prog_bar=False)
+
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self.forward(x)
@@ -103,31 +112,37 @@ class TransformerEncoder(pl.LightningModule):
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
-            num_points = 1
-            idx = torch.randint(0, len(y), (num_points,))
-            y_pred = y_hat[idx].detach().cpu().numpy().flatten()
-            y_true = y[idx].detach().cpu().numpy().flatten()
+            idx = [0] # plot only the first trajectory
+            y_pred = y_hat[idx].detach().cpu().numpy()
+            y_true = y[idx].detach().cpu().numpy()
 
-            plt.figure(figsize=(10, 6))
-            plt.scatter(x[idx].detach().cpu().numpy(), y_true,
-                        color='blue', label='Ground Truth')
-            plt.scatter(x[idx].detach().cpu().numpy(), y_pred,
-                        color='red', label='Prediction')
-            plt.xlabel('x')
-            plt.ylabel('y')
-            plt.legend()
-            plt.title('Prediction vs. Truth')
+            # time domain
+            x_arange = torch.arange(0, x.shape[1], 1)
+
+            plt.figure()
+            fig, axs = plt.subplots(
+                nrows=y_true.shape[-1], ncols=1, figsize=(10, 6), sharex=True, squeeze=False)
+            for i, ax in enumerate(axs):
+                ax = ax[0] # squeeze
+                ax.plot(x_arange.detach().cpu().numpy(), y_true[:,:,i].squeeze(), linewidth=3,
+                            color='blue', label='Ground Truth')
+                ax.plot(x_arange.detach().cpu().numpy(), y_pred[:,:,i].squeeze(), linewidth=3,
+                            color='red', label='Prediction')
+                ax.set_xlabel('Time')
+                ax.set_ylabel('Prediction')
+                ax.set_title('Trajectory for predicted component {}'.format(i))
+            axs[0][0].legend() # only put legend on first plot
             plt.grid(True)
-
-            plt.savefig("scatter_plot.png")
-            wandb.log({"Prediction vs. Truth": wandb.Image("scatter_plot.png")})
+            fig.suptitle('Trajectories: Prediction vs. Truth')
+            plt.subplots_adjust(hspace=0.5)
+            plt.savefig("traj_plot.png")
+            wandb.log({"Trajectories: Prediction vs. Truth": wandb.Image("traj_plot.png")})
             plt.close()
-            os.remove("scatter_plot.png")
+            os.remove("traj_plot.png")
 
             # compute value of each encoder layer sequentially
-            x_arange = torch.arange(0, x.shape[1], 1)
             # choose 3 random hidden dimensions to plot throughout
-            idx_dim = torch.randint(0, self.d_model, (3,))
+            idx_dim = [0, 1, 2]
             plt.figure()
             fig, axs = plt.subplots(
                 nrows=len(idx_dim), ncols=1, figsize=(10, 6), sharex=True)

@@ -72,15 +72,15 @@ class Rossler(DynSys):
 class DynamicsDataset(Dataset):
     def __init__(self, size=1000, seq_len=100, sample_rate=0.01, params={},
                  dyn_sys_name='Lorenz63',
-                 input_dim=1, output_dim=3,
+                 input_inds=[1], output_inds=[-1],
                  **kwargs):
         '''use params to pass in parameters for the dynamical system'''
         self.size = size
         self.seq_len = seq_len
         self.sample_rate = sample_rate
         self.dynsys = load_dyn_sys_class(dyn_sys_name)(**params)
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.input_inds = input_inds
+        self.output_inds = output_inds
 
         self.generate_data()
     
@@ -91,9 +91,9 @@ class DynamicsDataset(Dataset):
         xyz = odeint(self.dynsys.rhs, xyz0, t)
 
         # use traj from the 1st component of L63 as input
-        self.x = xyz[:, :, (self.input_dim-1):(self.input_dim)].permute(1, 0, 2)
+        self.x = xyz[:, :, self.input_inds].permute(1, 0, 2)
         # use traj from the 3rd component of L63 as output
-        self.y = xyz[:, :, (self.output_dim-1):(self.output_dim)].permute(1, 0, 2)
+        self.y = xyz[:, :, self.output_inds].permute(1, 0, 2)
         # self.x, self.y are both: (n_traj (size), Seq_len, dim_state)
 
         #normalize data
@@ -118,7 +118,7 @@ class DynamicsDataModule(pl.LightningDataModule):
             sample_rate={'train': 0.01, 'val': 0.01, 'test': 0.01},
             params={},
             dyn_sys_name='Lorenz63',
-            input_dim_data=1, output_dim_data=3,
+            input_inds=[0], output_inds=[-1],
             **kwargs
             ):
         super().__init__()
@@ -128,8 +128,8 @@ class DynamicsDataModule(pl.LightningDataModule):
         self.sample_rate = sample_rate
         self.params = params
         self.dyn_sys_name = dyn_sys_name
-        self.input_dim = input_dim_data
-        self.output_dim = output_dim_data
+        self.input_inds = input_inds
+        self.output_inds = output_inds
 
 
     def setup(self, stage: str):
@@ -139,24 +139,24 @@ class DynamicsDataModule(pl.LightningDataModule):
                                         sample_rate=self.sample_rate['train'],
                                         params=self.params,
                                         dyn_sys_name=self.dyn_sys_name,
-                                        input_dim=self.input_dim,
-                                        output_dim=self.output_dim)
+                                        input_inds=self.input_inds,
+                                        output_inds=self.output_inds)
 
         self.val = DynamicsDataset(size=self.size['val'],
                                         seq_len=self.seq_len['val'],
                                         sample_rate=self.sample_rate['val'],
                                         params=self.params,
                                         dyn_sys_name=self.dyn_sys_name,
-                                        input_dim=self.input_dim,
-                                        output_dim=self.output_dim)
+                                        input_inds=self.input_inds,
+                                        output_inds=self.output_inds)
 
         self.test = DynamicsDataset(size=self.size['test'],
                                         seq_len=self.seq_len['test'],
                                         sample_rate=self.sample_rate['test'],
                                         params=self.params,
                                         dyn_sys_name=self.dyn_sys_name,
-                                        input_dim=self.input_dim,
-                                        output_dim=self.output_dim)
+                                        input_inds=self.input_inds,
+                                        output_inds=self.output_inds)
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size)

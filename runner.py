@@ -12,8 +12,8 @@ from models import TransformerEncoder
 class Runner:
     def __init__(self,
             project_name="Rossler_x-Predicts-z",
-            input_dim_data=1,
-            output_dim_data=1,
+            input_inds=[0],
+            output_inds=[-1],
             n_trajectories_train=10000,
             n_trajectories_val=200,
             n_trajectories_test=200,
@@ -21,8 +21,6 @@ class Runner:
             sample_rate=0.01,
             batch_size=32,
             dyn_sys_name='Rossler',
-            input_dim_model=1,
-            output_dim_model=1,
             monitor_metric='val_loss',
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             use_transformer=True,
@@ -54,12 +52,12 @@ class Runner:
                                                  'test': sample_rate,},
                                  'batch_size': batch_size,
                                  'dyn_sys_name': dyn_sys_name,
-                                 'input_dim_data': input_dim_data,
-                                 'output_dim_data': output_dim_data,
+                                 'input_inds': input_inds,
+                                 'output_inds': output_inds,
                                  }
-        
-        self.model_hyperparams = {'input_dim': input_dim_model,
-                                  'output_dim': output_dim_model,
+
+        self.model_hyperparams = {'input_dim': len(input_inds),
+                                  'output_dim': len(output_inds),
                                   'monitor_metric': monitor_metric,
                                   'lr_scheduler_params': lr_scheduler_params,
                                   'use_transformer': use_transformer,

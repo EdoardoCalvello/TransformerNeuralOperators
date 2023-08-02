@@ -6,7 +6,7 @@ import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='transformer-sweep1')
+parser.add_argument('--project_name', type=str, default='debug')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
@@ -14,28 +14,28 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'n_trajectories_train': [10000],
-    'n_trajectories_val': [500],
-    'n_trajectories_test': [500],
+    'n_trajectories_train': [1000], # smaller dataset for debugging
+    'n_trajectories_val': [100],
+    'n_trajectories_test': [100],
     'seq_len': [100],
     'sample_rate': [0.01],
-    'batch_size': [16, 64, 256],
+    'batch_size': [64],
     'dyn_sys_name': ['Lorenz63'],
     'input_inds': [[0]],
-    'output_inds': [[2]],
+    'output_inds': [[1,2]],
     # optimizer settings
-    'learning_rate': [1e-2],
+    'learning_rate': [1e-3],
     'dropout': [1e-4],
     'lr_scheduler_params': [
                             {'patience': 2, 'factor': 0.5},
                              ],
-    'max_epochs': [300],
+    'max_epochs': [100],
     'monitor_metric': ['val_loss'],
-    # model settings
-    'd_model': [512],
+    # model settings (modest model size for debugging)
+    'd_model': [128],
     'nhead': [8],
     'num_layers': [6],
-    'dim_feedforward': [2048],
+    'dim_feedforward': [128],
     'activation': ['gelu'],
 }
 

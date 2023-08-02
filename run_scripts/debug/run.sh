@@ -21,4 +21,4 @@ module load cuda/11.8
 # mkdir -p slurm_logs
 
 # Run your Python script with the GPU device specified (assuming your script is named 'your_script.py')
-python run.py --id $SLURM_ARRAY_TASK_ID --project_name big_run_lorenz
+python run.py --id $SLURM_ARRAY_TASK_ID --project_name debug
