@@ -1,5 +1,6 @@
 # Import deep learning modules
 import pytorch_lightning as pl
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from pytorch_lightning.callbacks import BatchSizeFinder, LearningRateFinder
@@ -11,6 +12,8 @@ from models import TransformerEncoder
 
 class Runner:
     def __init__(self,
+            seed=0,
+            deterministic=True, # set to False to get different results each time
             project_name="Rossler_x-Predicts-z",
             input_inds=[0],
             output_inds=[-1],
@@ -77,14 +80,20 @@ class Runner:
                                     'gradient_clip_val': gradient_clip_val,
                                     'gradient_clip_algorithm': gradient_clip_algorithm,
                                     'overfit_batches': overfit_batches,
+                                    'deterministic': deterministic,
                                     }
         
+        self.other_hyperparams = {'seed': seed,}
+
+        seed_everything(seed)
         self.run()
 
     def run(self):
         # Combine run settings that will be logged to wandb.
-        list_of_dicts = [self.data_hyperparams,
-                         self.model_hyperparams, self.trainer_hyperparams]
+        list_of_dicts = [self.other_hyperparams,
+                         self.data_hyperparams,
+                         self.model_hyperparams,
+                         self.trainer_hyperparams]
         all_param_dict = {k: v for d in list_of_dicts for k, v in d.items()}
 
         # Initialize WandB logger
@@ -115,7 +124,7 @@ class Runner:
                      ]
 
         # Initialize the trainer
-        trainer = pl.Trainer(logger=wandb_logger, callbacks=callbacks,
+        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
                               **self.trainer_hyperparams)
 
         # Train the model
