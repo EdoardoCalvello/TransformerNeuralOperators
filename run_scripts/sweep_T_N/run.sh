@@ -19,5 +19,8 @@ conda activate transformers
 # Change to the working directory where your code is located
 # cd /path/to/your/code_directory
 
+# create slurm_logs directory if it doesn't exist
+mkdir -p slurm_logs
+
 # Run your Python script with the GPU device specified (assuming your script is named 'your_script.py')
 python run.py --id $SLURM_ARRAY_TASK_ID --project_name sweep_T_N
