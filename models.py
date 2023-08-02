@@ -77,6 +77,10 @@ class TransformerEncoder(pl.LightningModule):
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
+
+        if batch_idx == 0:
+            self.make_batch_figs(x, y, y_hat, tag='Train')
+
         return loss
 
     def on_after_backward(self):
@@ -112,70 +116,74 @@ class TransformerEncoder(pl.LightningModule):
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
-            idx = [0] # plot only the first trajectory
-            y_pred = y_hat[idx].detach().cpu().numpy()
-            y_true = y[idx].detach().cpu().numpy()
+            self.make_batch_figs(x, y, y_hat, tag='Val')
+        return loss
 
-            # time domain
-            x_arange = torch.arange(0, x.shape[1], 1)
+    def make_batch_figs(self, x, y, y_hat, tag=''):
+        idx = [0]  # plot only the first element of the batch
+        y_pred = y_hat[idx].detach().cpu().numpy()
+        y_true = y[idx].detach().cpu().numpy()
 
-            plt.figure()
-            fig, axs = plt.subplots(
-                nrows=y_true.shape[-1], ncols=1, figsize=(10, 6), sharex=True, squeeze=False)
-            for i, ax in enumerate(axs):
-                ax = ax[0] # squeeze
-                ax.plot(x_arange.detach().cpu().numpy(), y_true[:,:,i].squeeze(), linewidth=3,
-                            color='blue', label='Ground Truth')
-                ax.plot(x_arange.detach().cpu().numpy(), y_pred[:,:,i].squeeze(), linewidth=3,
-                            color='red', label='Prediction')
-                ax.set_xlabel('Time')
-                ax.set_ylabel('Prediction')
-                ax.set_title('Trajectory for predicted component {}'.format(i))
-            axs[0][0].legend() # only put legend on first plot
-            plt.grid(True)
-            fig.suptitle('Trajectories: Prediction vs. Truth')
-            plt.subplots_adjust(hspace=0.5)
-            plt.savefig("traj_plot.png")
-            wandb.log({"Trajectories: Prediction vs. Truth": wandb.Image("traj_plot.png")})
-            plt.close()
-            os.remove("traj_plot.png")
+        # time domain
+        x_arange = torch.arange(0, x.shape[1], 1)
 
-            # compute value of each encoder layer sequentially
-            # choose 3 random hidden dimensions to plot throughout
-            idx_dim = [0, 1, 2]
-            plt.figure()
-            fig, axs = plt.subplots(
-                nrows=len(idx_dim), ncols=1, figsize=(10, 6), sharex=True)
+        plt.figure()
+        fig, axs = plt.subplots(
+            nrows=y_true.shape[-1], ncols=1, figsize=(10, 6), sharex=True, squeeze=False)
+        for i, ax in enumerate(axs):
+            ax = ax[0] # squeeze
+            ax.plot(x_arange.detach().cpu().numpy(), y_true[:,:,i].squeeze(), linewidth=3,
+                        color='blue', label='Ground Truth')
+            ax.plot(x_arange.detach().cpu().numpy(), y_pred[:,:,i].squeeze(), linewidth=3,
+                        color='red', label='Prediction')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Prediction')
+            ax.set_title('Trajectory for predicted component {}'.format(i))
+        axs[0][0].legend() # only put legend on first plot
+        plt.grid(True)
+        fig.suptitle(f'{tag} Trajectories: Prediction vs. Truth')
+        plt.subplots_adjust(hspace=0.5)
+        plt.savefig(f"traj_plot_{tag}.png")
+        wandb.log(
+            {f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(f"traj_plot_{tag}.png")})
+        plt.close()
+        os.remove(f"traj_plot_{tag}.png")
 
-            x_layer_output = self.linear_in(x[idx])
+        # compute value of each encoder layer sequentially
+        # choose 3 random hidden dimensions to plot throughout
+        idx_dim = [0, 1, 2]
+        plt.figure()
+        fig, axs = plt.subplots(
+            nrows=len(idx_dim), ncols=1, figsize=(10, 6), sharex=True)
+
+        x_layer_output = self.linear_in(x[idx])
+        for j, id in enumerate(idx_dim):
+            axs[j].set_title(
+                'Embedding dimension {} over layer depth'.format(id))
+            axs[j].plot(x_arange,
+                        x_layer_output.detach().cpu().numpy()[
+                            :, :, id].squeeze(),
+                        linewidth=3, alpha=0.8, label='Layer {}'.format(0),
+                        color=plt.cm.viridis(0))
+        for i, layer in enumerate(self.encoder.layers):
+            x_layer_output = layer(x_layer_output)
+            # Plot the output of this layer
             for j, id in enumerate(idx_dim):
-                axs[j].set_title(
-                    'Embedding dimension {} over layer depth'.format(id))
                 axs[j].plot(x_arange,
                             x_layer_output.detach().cpu().numpy()[
                                 :, :, id].squeeze(),
-                            linewidth=3, alpha=0.8, label='Layer {}'.format(0),
-                            color=plt.cm.viridis(0))
-            for i, layer in enumerate(self.encoder.layers):
-                x_layer_output = layer(x_layer_output)
-                # Plot the output of this layer
-                for j, id in enumerate(idx_dim):
-                    axs[j].plot(x_arange,
-                                x_layer_output.detach().cpu().numpy()[
-                                    :, :, id].squeeze(),
-                                linewidth=3, alpha=0.8, label=f'Layer {i+1}',
-                                color=plt.cm.viridis((i+1) / (len(self.encoder.layers))))
+                            linewidth=3, alpha=0.8, label=f'Layer {i+1}',
+                            color=plt.cm.viridis((i+1) / (len(self.encoder.layers))))
 
-            axs[0].legend()
-            plt.subplots_adjust(hspace=0.5)
-            fig.suptitle('Evolution of the Encoder Layers')
-            plt.savefig("encoder_layer_plot.png")
-            wandb.log({"Encoder Layer Plot": wandb.Image(
-                "encoder_layer_plot.png")})
-            os.remove("encoder_layer_plot.png")
-            plt.close('all')
+        axs[0].legend()
+        plt.subplots_adjust(hspace=0.5)
+        fig.suptitle(f'{tag} Evolution of the Encoder Layers')
+        plt.savefig("encoder_layer_plot.png")
+        wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(
+            "encoder_layer_plot.png")})
+        os.remove("encoder_layer_plot.png")
+        plt.close('all')
 
-        return loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
