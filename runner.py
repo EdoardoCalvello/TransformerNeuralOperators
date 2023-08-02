@@ -41,6 +41,8 @@ class Runner:
             gradient_clip_algorithm="value",
             overfit_batches=0.0):
 
+        seed_everything(seed, workers=True)
+
         self.project_name = project_name
 
         self.data_hyperparams = {'size': {'train': n_trajectories_train,
@@ -85,7 +87,6 @@ class Runner:
         
         self.other_hyperparams = {'seed': seed,}
 
-        seed_everything(42, workers=True)
         self.run()
 
     def run(self):
