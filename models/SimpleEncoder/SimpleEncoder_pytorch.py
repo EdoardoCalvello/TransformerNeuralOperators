@@ -14,6 +14,7 @@ from models.pytorch_transformer_custom import TransformerEncoderLayer
 class SimpleEncoder(torch.nn.Module):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
                  learning_rate=0.01, max_sequence_length=100,
+                 do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding=True,
                  activation='relu',
@@ -32,6 +33,7 @@ class SimpleEncoder(torch.nn.Module):
             dropout=dropout,
             activation=activation,
             norm_first=norm_first,
+            do_layer_norm=do_layer_norm,
             dim_feedforward=dim_feedforward,
             batch_first=True)  # when batch first, expects input tensor (batch_size, Seq_len, input_dim)
         self.encoder = TransformerEncoder(

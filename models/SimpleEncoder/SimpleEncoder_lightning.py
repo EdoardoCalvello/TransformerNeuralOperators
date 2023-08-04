@@ -15,6 +15,7 @@ from models.SimpleEncoder.SimpleEncoder_pytorch import SimpleEncoder
 class SimpleEncoderModule(pl.LightningModule):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
                  learning_rate=0.01, max_sequence_length=100,
+                 do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding=True,
                  activation='relu',
@@ -37,6 +38,7 @@ class SimpleEncoderModule(pl.LightningModule):
                                     nhead=nhead, 
                                     num_layers=num_layers,
                                     max_sequence_length=max_sequence_length,
+                                    do_layer_norm=do_layer_norm,
                                     use_transformer=use_transformer,
                                     use_positional_encoding=use_positional_encoding,
                                     activation=activation,

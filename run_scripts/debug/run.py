@@ -17,7 +17,7 @@ exp_dict = {
     'n_trajectories_train': [1000], # smaller dataset for debugging
     'n_trajectories_val': [100],
     'n_trajectories_test': [100],
-    'seq_len': [10, 25, 50, 100, 200, 500],
+    'seq_len': [200],
     'sample_rate': [0.01],
     'batch_size': [64],
     'dyn_sys_name': ['Lorenz63'],
@@ -32,6 +32,7 @@ exp_dict = {
     'max_epochs': [100],
     'monitor_metric': ['val_loss'],
     # model settings (modest model size for debugging)
+    'do_layer_norm': [True, False],
     'd_model': [128],
     'nhead': [8],
     'num_layers': [6],

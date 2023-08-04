@@ -462,9 +462,13 @@ class TransformerEncoderLayer(Module):
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
                  activation: Union[str, Callable[[Tensor], Tensor]] = F.relu,
                  layer_norm_eps: float = 1e-5, batch_first: bool = False, norm_first: bool = False,
+                 do_layer_norm: bool = True,
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
+
+        self.do_layer_norm = do_layer_norm # Custom implementation to optionally omit layer norm
+
         self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
                                             **factory_kwargs)
         # Implementation of Feedforward model
@@ -606,15 +610,27 @@ class TransformerEncoderLayer(Module):
                     mask_type,
                 )
 
+        def _apply_norm1(x):
+            if self.do_layer_norm:
+                return self.norm1(x)
+            else:
+                return x
+
+        def _apply_norm2(x):
+            if self.do_layer_norm:
+                return self.norm2(x)
+            else:
+                return x
+
         x = src
         if self.norm_first:
-            x = x + self._sa_block(self.norm1(x), src_mask,
+            x = x + self._sa_block(_apply_norm1(x), src_mask,
                                    src_key_padding_mask, is_causal=is_causal)
-            x = x + self._ff_block(self.norm2(x))
+            x = x + self._ff_block(_apply_norm2(x))
         else:
-            x = self.norm1(x + self._sa_block(x, src_mask,
+            x = _apply_norm1(x + self._sa_block(x, src_mask,
                            src_key_padding_mask, is_causal=is_causal))
-            x = self.norm2(x + self._ff_block(x))
+            x = _apply_norm2(x + self._ff_block(x))
 
         return x
 
