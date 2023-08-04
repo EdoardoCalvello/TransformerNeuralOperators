@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../../')
-from runner import Runner
+from models.SimpleEncoder.runner import Runner
 from utils import dict_combiner
 import argparse
 
@@ -17,7 +17,7 @@ exp_dict = {
     'n_trajectories_train': [1000], # smaller dataset for debugging
     'n_trajectories_val': [100],
     'n_trajectories_test': [100],
-    'seq_len': [100],
+    'seq_len': [10, 25, 50, 100, 200, 500],
     'sample_rate': [0.01],
     'batch_size': [64],
     'dyn_sys_name': ['Lorenz63'],
