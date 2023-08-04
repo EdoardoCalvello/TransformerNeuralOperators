@@ -69,10 +69,10 @@ class Transformer(pl.LightningModule):
         self.dropout = nn.Dropout(dropout)
 
     def generate_mask(self, src, tgt):
-        src_mask = (src != 0).unsqueeze(1).unsqueeze(2)
-        tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
+        src_mask = (src != 0).unsqueeze(1)
+        tgt_mask = (tgt != 0).unsqueeze(1)
         seq_length = tgt.size(1)
-        nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
+        nopeak_mask = (torch.triu(torch.ones(1,seq_length, seq_length), diagonal=1)).bool()
         tgt_mask = tgt_mask & nopeak_mask
         return src_mask, tgt_mask
 
@@ -82,23 +82,27 @@ class Transformer(pl.LightningModule):
 
         src_embedded = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
         enc_output = src_embedded
-
+        #if src_mask is not None:
+            #print(src_mask.shape)
+            #print(tgt_mask.shape)
         for enc_layer in self.encoder_layers:
-            enc_output = enc_layer(enc_output, None)  # src_mask
+            enc_output = enc_layer(enc_output, src_mask)  # src_mask
 
         if tgt is not None:
             tgt_embedded = self.dropout(self.positional_encoding(self.decoder_embedding(tgt)))
             dec_output = tgt_embedded
 
             for dec_layer in self.decoder_layers:
-                dec_output = dec_layer(dec_output, enc_output, None, None)  # src_mask, tgt_mask
+                dec_output = dec_layer(dec_output, enc_output, src_mask, tgt_mask)  # src_mask, tgt_mask
 
             output = self.fc(dec_output)
             return output
         else:
             # Autoregressive decoding during validation and testing
+            
             # Start with a dummy token as the initial input to the decoder
-            dummy_input = torch.zeros_like(src_embedded[:, :1, :])  # Shape: (batch_size, 1, d_model) #src_embedded[:, :1, :]?
+            #dummy_input = torch.zeros_like(src_embedded[:, :1, :])  # Shape: (batch_size, 1, d_model) #src_embedded[:, :1, :]?
+            dummy_input = tgt_embedded[:, :1, :]
             dec_output = dummy_input
             
             for dec_layer in self.decoder_layers:
@@ -118,27 +122,6 @@ class Transformer(pl.LightningModule):
             output = self.fc(output_seq)
             return output
 
-
-
-    #def forward(self, src, tgt):
-
-     #   src_mask, tgt_mask = self.generate_mask(src, tgt)
-       
-     #   src_embedded = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
-     #   tgt_embedded = self.dropout(self.positional_encoding(self.decoder_embedding(tgt)))
-        #src_embedded = self.dropout((self.encoder_embedding(src)))
-        #tgt_embedded = self.dropout((self.decoder_embedding(tgt)))
-
-     #   enc_output = src_embedded
-     #   for enc_layer in self.encoder_layers:
-     #       enc_output = enc_layer(enc_output, None) #src_mask
-
-     #   dec_output = tgt_embedded
-     #   for dec_layer in self.decoder_layers:
-     #       dec_output = dec_layer(dec_output, enc_output, None, None) #src_mask, tgt_mask
-
-     #   output = self.fc(dec_output)
-     #   return output
     
     def training_step(self, batch):
         x, y = batch
@@ -169,7 +152,7 @@ class Transformer(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x,None)
+        y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -199,7 +182,7 @@ class Transformer(pl.LightningModule):
 
     def test_step(self, batch):
         x, y = batch
-        y_hat = self.forward(x,None)
+        y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
