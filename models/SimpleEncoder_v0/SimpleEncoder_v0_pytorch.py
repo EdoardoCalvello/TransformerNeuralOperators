@@ -22,7 +22,7 @@ class SimpleEncoder_v0(torch.nn.Module):
         super(SimpleEncoder_v0, self).__init__()
         self.d_model = d_model
         self.learning_rate = learning_rate
-        self.max_sequence_length = max_sequence_length
+        self.max_sequence_length = max_sequence_length + output_dim
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
 
@@ -55,9 +55,14 @@ class SimpleEncoder_v0(torch.nn.Module):
         pe = pe.unsqueeze(0)  # Add a batch dimension
         self.register_buffer('pe', pe)
 
-    def forward(self, x):
+    def forward(self, x, y):
+        #this only works when the input dimension is 1, indeed how would you concatenate initial condition with the input otherwise?
+
         # print(x.shape) # (batch_size, seq_len, dim_state)
         # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
+        initial_cond = y[:,0,:].reshape(y.shape[0],1,y.shape[2]) #reshape to make sure we have dim (batch,1,dim_output)
+        initial_cond = initial_cond.permute(0,2,1) # (batch_size, dim_state, 1)
+        x = torch.cat((initial_cond,x),dim=1) # (batch_size, seq_len+output_dim, dim_state)
         x = self.linear_in(x)  # (batch_size, seq_len, input_dim)
 
         if self.use_positional_encoding:

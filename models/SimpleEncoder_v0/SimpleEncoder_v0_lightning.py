@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from models.SimpleEncoder_v0.SimpleEncoder_v0_pytorch import SimpleEncoder_v0
 
 # Define the pytorch lightning module for training the Simple Encoder model
-class SimpleEncoderModule(pl.LightningModule):
+class SimpleEncoder_v0Module(pl.LightningModule):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
@@ -23,10 +23,10 @@ class SimpleEncoderModule(pl.LightningModule):
                  lr_scheduler_params={'patience': 3,
                                       'factor': 0.5},
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
-        super(SimpleEncoderModule, self).__init__()
+        super(SimpleEncoder_v0Module, self).__init__()
         self.d_model = d_model
         self.learning_rate = learning_rate
-        self.max_sequence_length = max_sequence_length
+        self.max_sequence_length = max_sequence_length + output_dim #different to non v0
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
         self.monitor_metric = monitor_metric
@@ -46,12 +46,13 @@ class SimpleEncoderModule(pl.LightningModule):
                                     norm_first=norm_first,
                                     dim_feedforward=dim_feedforward)
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, y):
+        return self.model(x, y)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        v0_dim = y.shape[-1]
+        y_hat = self.forward(x,y)[:,v0_dim:,:]
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
@@ -89,7 +90,8 @@ class SimpleEncoderModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        v0_dim = y.shape[-1]
+        y_hat = self.forward(x,y)[:,v0_dim:,:]
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -165,7 +167,8 @@ class SimpleEncoderModule(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        v0_dim = y.shape[-1]
+        y_hat = self.forward(x,y)[:,v0_dim:,:]
         loss = F.mse_loss(y_hat, y)
         self.log("test_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
