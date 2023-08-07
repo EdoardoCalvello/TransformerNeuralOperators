@@ -1,6 +1,9 @@
 import numpy as np
 import itertools
 
+def rnd_int(N=100000):
+    return np.random.randint(N)
+
 def dict_combiner(mydict):
     if mydict:
         keys, values = zip(*mydict.items())

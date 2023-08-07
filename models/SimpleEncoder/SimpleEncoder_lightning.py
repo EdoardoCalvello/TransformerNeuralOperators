@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 
 from models.SimpleEncoder.SimpleEncoder_pytorch import SimpleEncoder
 
+from utils import rnd_int
+
 # Define the pytorch lightning module for training the Simple Encoder model
 class SimpleEncoderModule(pl.LightningModule):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
@@ -121,11 +123,13 @@ class SimpleEncoderModule(pl.LightningModule):
         plt.grid(True)
         fig.suptitle(f'{tag} Trajectories: Prediction vs. Truth')
         plt.subplots_adjust(hspace=0.5)
-        plt.savefig(f"traj_plot_{tag}.png")
+        # create plotname with random number to avoid overwriting
+        plotname = f"traj_plot_{tag}_{rnd_int()}.png"
+        plt.savefig(plotname)
         wandb.log(
-            {f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(f"traj_plot_{tag}.png")})
+            {f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(plotname)})
         plt.close()
-        os.remove(f"traj_plot_{tag}.png")
+        os.remove(plotname)
 
         # compute value of each encoder layer sequentially
         # choose 3 random hidden dimensions to plot throughout
@@ -156,10 +160,11 @@ class SimpleEncoderModule(pl.LightningModule):
         axs[0].legend()
         plt.subplots_adjust(hspace=0.5)
         fig.suptitle(f'{tag} Evolution of the Encoder Layers')
-        plt.savefig("encoder_layer_plot.png")
+        plotname = f"encoder_layer_plot_{rnd_int()}.png"
+        plt.savefig(plotname)
         wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(
-            "encoder_layer_plot.png")})
-        os.remove("encoder_layer_plot.png")
+            plotname)})
+        os.remove(plotname)
         plt.close('all')
 
 
