@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../../')
-from runner import Runner
+from models.SimpleEncoder.runner import Runner
 from utils import dict_combiner
 import argparse
 
