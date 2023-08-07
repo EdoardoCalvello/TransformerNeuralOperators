@@ -117,7 +117,7 @@ class Runner:
         lr_monitor = LearningRateMonitor(logging_interval='step')
 
         # Create an early stopping callback
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=20, mode='min', verbose=True)
 
         # aggregate all callbacks
         callbacks = [lr_monitor,
