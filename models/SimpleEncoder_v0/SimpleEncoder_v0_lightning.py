@@ -51,8 +51,7 @@ class SimpleEncoder_v0Module(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        v0_dim = y.shape[-1]
-        y_hat = self.forward(x,y)[:,v0_dim:,:]
+        y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
@@ -90,8 +89,7 @@ class SimpleEncoder_v0Module(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        v0_dim = y.shape[-1]
-        y_hat = self.forward(x,y)[:,v0_dim:,:]
+        y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -167,8 +165,7 @@ class SimpleEncoder_v0Module(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        v0_dim = y.shape[-1]
-        y_hat = self.forward(x,y)[:,v0_dim:,:]
+        y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("test_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)

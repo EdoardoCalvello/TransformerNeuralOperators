@@ -72,4 +72,5 @@ class SimpleEncoder_v0(torch.nn.Module):
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)
 
         x = self.linear_out(x)  # (seq_len, batch_size, output_dim)
-        return x
+
+        return x[:, y.shape[2]:, :]
