@@ -1,8 +1,9 @@
 import numpy as np
 import itertools
+from datetime import datetime
 
-def rnd_int(N=100000):
-    return np.random.randint(N)
+def tnow():
+    return datetime.utcnow().strftime('%f')
 
 def dict_combiner(mydict):
     if mydict:

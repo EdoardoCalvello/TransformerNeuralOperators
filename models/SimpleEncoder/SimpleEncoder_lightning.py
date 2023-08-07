@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from models.SimpleEncoder.SimpleEncoder_pytorch import SimpleEncoder
 
-from utils import rnd_int
+from utils import tnow
 
 # Define the pytorch lightning module for training the Simple Encoder model
 class SimpleEncoderModule(pl.LightningModule):
@@ -124,7 +124,8 @@ class SimpleEncoderModule(pl.LightningModule):
         fig.suptitle(f'{tag} Trajectories: Prediction vs. Truth')
         plt.subplots_adjust(hspace=0.5)
         # create plotname with random number to avoid overwriting
-        plotname = f"traj_plot_{tag}_{rnd_int()}.png"
+        # use exact datetime to avoid overwriting
+        plotname = f"traj_plot_{tag}_{tnow()}.png"
         plt.savefig(plotname)
         wandb.log(
             {f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(plotname)})
@@ -160,12 +161,12 @@ class SimpleEncoderModule(pl.LightningModule):
         axs[0].legend()
         plt.subplots_adjust(hspace=0.5)
         fig.suptitle(f'{tag} Evolution of the Encoder Layers')
-        plotname = f"encoder_layer_plot_{rnd_int()}.png"
+        plotname = f"encoder_layer_plot_{tnow()}.png"
         plt.savefig(plotname)
         wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(
             plotname)})
-        os.remove(plotname)
         plt.close('all')
+        os.remove(plotname)
 
 
     def test_step(self, batch, batch_idx):
