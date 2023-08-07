@@ -55,6 +55,11 @@ class SimpleEncoderModule(pl.LightningModule):
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
+        
+        # Sup norm loss
+        loss_sup  = torch.max(torch.abs(y_hat - y))
+        self.log("train_loss_sup", loss_sup, on_step=False,
+                 on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, tag='Train')
@@ -92,6 +97,11 @@ class SimpleEncoderModule(pl.LightningModule):
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+
+        # Sup norm loss
+        loss_sup  = torch.max(torch.abs(y_hat - y))
+        self.log("val_loss_sup", loss_sup, on_step=False,
+                 on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, tag='Val')
@@ -169,6 +179,12 @@ class SimpleEncoderModule(pl.LightningModule):
         loss = F.mse_loss(y_hat, y)
         self.log("test_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
+        
+        # Sup norm loss
+        loss_sup  = torch.max(torch.abs(y_hat - y))
+        self.log("test_loss_sup", loss_sup, on_step=False,
+                 on_epoch=True, prog_bar=True)
+        
         return loss
 
     def configure_optimizers(self):
