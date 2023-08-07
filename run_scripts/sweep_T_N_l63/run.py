@@ -55,7 +55,7 @@ exp = exp_list[args.id]
 exp['n_trajectories_train'] = int(T_DATA/exp['seq_len'])
 
 # set the batch size so that the number of batches is the same for each sequence length
-exp['batch_size'] = int(exp['n_trajectories_train']/5)
+exp['batch_size'] = int(exp['n_trajectories_train']/10)
 
 # run the experiment
 Runner(**exp)
