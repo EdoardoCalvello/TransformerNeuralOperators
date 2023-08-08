@@ -71,6 +71,7 @@ class Runner:
                                   'output_dim': len(output_inds),
                                   'monitor_metric': monitor_metric,
                                   'lr_scheduler_params': lr_scheduler_params,
+                                  'tune_initial_lr': tune_initial_lr,
                                   'use_transformer': use_transformer,
                                   'use_positional_encoding': use_positional_encoding,
                                   'include_y0_input': include_y0_input,
@@ -93,7 +94,6 @@ class Runner:
                                     'gradient_clip_algorithm': gradient_clip_algorithm,
                                     'overfit_batches': overfit_batches,
                                     'deterministic': deterministic,
-                                    'tune_initial_lr': tune_initial_lr,
                                     }
         
         self.other_hyperparams = {'seed': seed,}
