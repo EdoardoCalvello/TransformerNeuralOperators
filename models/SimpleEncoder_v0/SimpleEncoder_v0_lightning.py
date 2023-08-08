@@ -100,7 +100,7 @@ class SimpleEncoder_v0Module(pl.LightningModule):
 
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
-        self.log("train_loss_sup", loss_sup, on_step=False,
+        self.log("val_loss_sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
@@ -182,7 +182,7 @@ class SimpleEncoder_v0Module(pl.LightningModule):
         
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
-        self.log("train_loss_sup", loss_sup, on_step=False,
+        self.log("test_loss_sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
         
         return loss
