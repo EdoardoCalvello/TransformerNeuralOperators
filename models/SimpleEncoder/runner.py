@@ -153,7 +153,7 @@ class Runner:
             print('Using batch size: ', datamodule.batch_size)
 
         # Tune the learning rate
-        if self.trainer_hyperparams['tune_initial_lr']:
+        if self.other_hyperparams['tune_initial_lr']:
             min_lr, max_lr = model.learning_rate * 0.01, model.learning_rate * 100
             tuner.lr_find(model, datamodule=datamodule, min_lr=min_lr, max_lr=max_lr, num_training=20)
             print('Using learning rate: ', model.learning_rate)
