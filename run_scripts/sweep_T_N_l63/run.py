@@ -7,7 +7,7 @@ import argparse
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
 parser.add_argument('--project_name', type=str,
-                    default='sweep_sequence_length-fixed_data_quantity')
+                    default='sweep_sequence_length-fixed_data_quantity_adapt-batch-size')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
@@ -36,7 +36,6 @@ exp_dict = {
     'max_epochs': [70],
     'monitor_metric': ['val_loss'],
     # model settings (modest model size for debugging)
-    'do_layer_norm': [True, False],
     'd_model': [128],
     'nhead': [8],
     'num_layers': [6],
@@ -54,6 +53,9 @@ exp = exp_list[args.id]
 
 # set the number of trajectories to use for training based on the sequence length
 exp['n_trajectories_train'] = int(T_DATA/exp['seq_len'])
+
+# set the batch size so that the number of batches is the same for each sequence length
+exp['batch_size'] = int(exp['n_trajectories_train']/10)
 
 # run the experiment
 Runner(**exp)

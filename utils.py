@@ -1,5 +1,9 @@
 import numpy as np
 import itertools
+from datetime import datetime
+
+def tnow():
+    return datetime.utcnow().strftime('%f')
 
 def dict_combiner(mydict):
     if mydict:

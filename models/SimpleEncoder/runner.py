@@ -23,6 +23,7 @@ class Runner:
             seq_len=100,
             sample_rate=0.01,
             batch_size=32,
+            auto_batch_size=True,
             dyn_sys_name='Rossler',
             monitor_metric='val_loss',
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
@@ -57,6 +58,7 @@ class Runner:
                                                  'val': sample_rate,
                                                  'test': sample_rate,},
                                  'batch_size': batch_size,
+                                 'auto_batch_size': auto_batch_size,
                                  'dyn_sys_name': dyn_sys_name,
                                  'input_inds': input_inds,
                                  'output_inds': output_inds,
@@ -117,14 +119,16 @@ class Runner:
         lr_monitor = LearningRateMonitor(logging_interval='step')
 
         # Create an early stopping callback
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min', verbose=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=20, mode='min', verbose=True)
 
         # aggregate all callbacks
         callbacks = [lr_monitor,
                      early_stopping,
-                    #  BatchSizeFinder(init_val=32),
                     #  LearningRateFinder(min_lr=1e-4, max_lr=1e-2, num_training_steps=20),
                      ]
+
+        if self.data_hyperparams['auto_batch_size']:
+            callbacks.append(BatchSizeFinder(init_val=2))
 
         # Initialize the trainer
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
