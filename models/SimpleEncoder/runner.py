@@ -71,7 +71,6 @@ class Runner:
                                   'output_dim': len(output_inds),
                                   'monitor_metric': monitor_metric,
                                   'lr_scheduler_params': lr_scheduler_params,
-                                  'tune_initial_lr': tune_initial_lr,
                                   'use_transformer': use_transformer,
                                   'use_positional_encoding': use_positional_encoding,
                                   'include_y0_input': include_y0_input,
@@ -96,7 +95,8 @@ class Runner:
                                     'deterministic': deterministic,
                                     }
         
-        self.other_hyperparams = {'seed': seed,}
+        self.other_hyperparams = {'seed': seed, 'tune_initial_lr': tune_initial_lr,
+                                  }
 
         self.run()
 
