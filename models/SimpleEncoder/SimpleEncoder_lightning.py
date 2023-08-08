@@ -144,14 +144,8 @@ class SimpleEncoderModule(pl.LightningModule):
         plt.grid(True)
         fig.suptitle(f'{tag} Trajectories: Prediction vs. Truth')
         plt.subplots_adjust(hspace=0.5)
-        # create plotname with random number to avoid overwriting
-        # use exact datetime to avoid overwriting
-        plotname = f"traj_plot.png"
-        plt.savefig(plotname)
-        wandb.log(
-            {f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(plotname)})
+        wandb.log({f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(fig)})
         plt.close()
-        # os.remove(plotname)
 
         # compute value of each encoder layer sequentially
         # choose 3 random hidden dimensions to plot throughout
@@ -182,12 +176,8 @@ class SimpleEncoderModule(pl.LightningModule):
         axs[0].legend()
         plt.subplots_adjust(hspace=0.5)
         fig.suptitle(f'{tag} Evolution of the Encoder Layers')
-        plotname = f"encoder_layer_plot.png"
-        plt.savefig(plotname)
-        wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(
-            plotname)})
+        wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(fig)})
         plt.close('all')
-        # os.remove(plotname)
 
 
     def test_step(self, batch, batch_idx):
