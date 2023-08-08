@@ -6,7 +6,7 @@ import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='basic_l63')
+parser.add_argument('--project_name', type=str, default='basic_l63_DEBUG')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 

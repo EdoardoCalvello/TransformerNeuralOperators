@@ -3,8 +3,8 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
-from pytorch_lightning.callbacks import BatchSizeFinder, LearningRateFinder
 import wandb
+from pytorch_lightning.tuner import Tuner
 
 # Import custom modules
 from datasets import DynamicsDataModule
@@ -23,10 +23,11 @@ class Runner:
             seq_len=100,
             sample_rate=0.01,
             batch_size=32,
-            auto_batch_size=True,
+            tune_batch_size=True,
             dyn_sys_name='Rossler',
             monitor_metric='val_loss',
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
+            tune_initial_lr=True,
             use_transformer=True,
             use_positional_encoding=True,
             include_y0_input=False,
@@ -60,7 +61,7 @@ class Runner:
                                                  'val': sample_rate,
                                                  'test': sample_rate,},
                                  'batch_size': batch_size,
-                                 'auto_batch_size': auto_batch_size,
+                                 'tune_batch_size': tune_batch_size,
                                  'dyn_sys_name': dyn_sys_name,
                                  'input_inds': input_inds,
                                  'output_inds': output_inds,
@@ -92,6 +93,7 @@ class Runner:
                                     'gradient_clip_algorithm': gradient_clip_algorithm,
                                     'overfit_batches': overfit_batches,
                                     'deterministic': deterministic,
+                                    'tune_initial_lr': tune_initial_lr,
                                     }
         
         self.other_hyperparams = {'seed': seed,}
@@ -127,23 +129,34 @@ class Runner:
         early_stopping = EarlyStopping(monitor='val_loss', patience=20, mode='min', verbose=True)
 
         # aggregate all callbacks
-        callbacks = [lr_monitor,
-                     early_stopping,
-                    #  LearningRateFinder(min_lr=1e-4, max_lr=1e-2, num_training_steps=20),
-                     ]
+        callbacks = [lr_monitor, early_stopping]
 
-        if self.data_hyperparams['auto_batch_size']:
+
+        # Initialize the trainer
+        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+                              **self.trainer_hyperparams)
+
+        # Tune the model
+        tuner = Tuner(trainer)
+
+        # Tune the batch size
+        # half the identified batch size to avoid maxing out RAM
+        if self.data_hyperparams['tune_batch_size']:
             if torch.cuda.is_available():
                 print('Using GPU, so setting batch size scaler max_trials to 25 (pick a smaller number if this destroys the machine)')
                 max_trials = 25
             else:
                 print('Using CPU, so setting batch size scaler max_trials to 6 (avoid maxing RAM on a local machine)')
                 max_trials = 6
-            callbacks.append(BatchSizeFinder(init_val=2, max_trials=max_trials))
+            tuner.scale_batch_size(model, max_trials=max_trials, datamodule=datamodule)
+            datamodule.batch_size = max(1, datamodule.batch_size // 2)
+            print('Using batch size: ', datamodule.batch_size)
 
-        # Initialize the trainer
-        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-                              **self.trainer_hyperparams)
+        # Tune the learning rate
+        if self.trainer_hyperparams['tune_initial_lr']:
+            min_lr, max_lr = model.learning_rate * 0.01, model.learning_rate * 100
+            tuner.lr_find(model, datamodule=datamodule, min_lr=min_lr, max_lr=max_lr, num_training=20)
+            print('Using learning rate: ', model.learning_rate)
 
         # Train the model
         trainer.fit(model, datamodule=datamodule)
