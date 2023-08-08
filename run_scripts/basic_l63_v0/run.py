@@ -1,12 +1,12 @@
 import sys
 sys.path.append('../../')
-from models.SimpleEncoder_v0.runner import Runner
+from models.SimpleEncoder.runner import Runner
 from utils import dict_combiner
 import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='basic_l63_v0')
+parser.add_argument('--project_name', type=str, default='basic_l63_DEBUG')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
@@ -32,7 +32,7 @@ exp_dict = {
     'max_epochs': [100],
     'monitor_metric': ['val_loss'],
     # model settings (modest model size for debugging)
-    'do_layer_norm': [True, False],
+    'include_y0_input': [True, False],
     'd_model': [128],
     'nhead': [8],
     'num_layers': [6],

@@ -20,6 +20,7 @@ class SimpleEncoderModule(pl.LightningModule):
                  do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding=True,
+                 include_y0_input=False,
                  activation='relu',
                  monitor_metric='train_loss',
                  lr_scheduler_params={'patience': 3,
@@ -34,6 +35,12 @@ class SimpleEncoderModule(pl.LightningModule):
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
 
+        # whether to use y as input to the encoder
+        self.use_y_forward = include_y0_input
+
+        # currently used for including v0 in the input to the encoder
+        # can also be used for decoding later on
+
         self.model = SimpleEncoder(input_dim=input_dim,
                                     output_dim=output_dim, 
                                     d_model=d_model, 
@@ -43,17 +50,21 @@ class SimpleEncoderModule(pl.LightningModule):
                                     do_layer_norm=do_layer_norm,
                                     use_transformer=use_transformer,
                                     use_positional_encoding=use_positional_encoding,
+                                    include_y0_input=include_y0_input,
                                     activation=activation,
                                     dropout=dropout,
                                     norm_first=norm_first,
                                     dim_feedforward=dim_feedforward)
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, y):
+        if self.use_y_forward:
+            return self.model(x, y)
+        else: 
+            return self.model(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(x, y)
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
@@ -96,7 +107,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(x, y)
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -181,7 +192,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(x, y)
         loss = F.mse_loss(y_hat, y)
         self.log("test_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)

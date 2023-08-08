@@ -3,6 +3,12 @@
 *.err
 *.log
 
+# plot stuff
+*.png
+
+# data stuff
+*.csv
+
 # lightning stuff
 *.ckpt
 *.ckpt.index

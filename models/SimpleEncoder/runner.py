@@ -1,5 +1,5 @@
 # Import deep learning modules
-import pytorch_lightning as pl
+import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
@@ -29,6 +29,7 @@ class Runner:
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             use_transformer=True,
             use_positional_encoding=True,
+            include_y0_input=False,
             do_layer_norm=True,
             d_model=128,
             nhead=8,
@@ -70,6 +71,7 @@ class Runner:
                                   'lr_scheduler_params': lr_scheduler_params,
                                   'use_transformer': use_transformer,
                                   'use_positional_encoding': use_positional_encoding,
+                                  'include_y0_input': include_y0_input,
                                   'do_layer_norm': do_layer_norm,
                                   'd_model': d_model,
                                   'nhead': nhead,
@@ -78,7 +80,8 @@ class Runner:
                                   'dropout': dropout,
                                   'dim_feedforward': dim_feedforward,
                                   'activation': activation,
-                                  'max_sequence_length': seq_len,
+                                  # add extra sequence to allow for inclusion of output I.C.
+                                  'max_sequence_length': seq_len + len(output_inds),
                                   }
         
         self.trainer_hyperparams = {'max_epochs': max_epochs,
@@ -128,7 +131,13 @@ class Runner:
                      ]
 
         if self.data_hyperparams['auto_batch_size']:
-            callbacks.append(BatchSizeFinder(init_val=2))
+            if torch.cuda.is_available():
+                print('Using GPU, so setting batch size scaler max_trials to 25 (pick a smaller number if this destroys the machine)')
+                max_trials = 25
+            else:
+                print('Using CPU, so setting batch size scaler max_trials to 6 (avoid maxing RAM on a local machine)')
+                max_trials = 6
+            callbacks.append(BatchSizeFinder(init_val=2, max_trials=max_trials))
 
         # Initialize the trainer
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,

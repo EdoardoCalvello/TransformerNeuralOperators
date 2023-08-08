@@ -17,14 +17,18 @@ class SimpleEncoder(torch.nn.Module):
                  do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding=True,
+                 include_y0_input=False,
                  activation='relu',
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
         super(SimpleEncoder, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
         self.d_model = d_model
         self.learning_rate = learning_rate
         self.max_sequence_length = max_sequence_length
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
+        self.include_y0_input = include_y0_input # whether to use y as input to the encoder
 
         self.set_positional_encoding()
 
@@ -55,9 +59,15 @@ class SimpleEncoder(torch.nn.Module):
         pe = pe.unsqueeze(0)  # Add a batch dimension
         self.register_buffer('pe', pe)
 
-    def forward(self, x):
-        # print(x.shape) # (batch_size, seq_len, dim_state)
-        # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
+    def forward(self, x, y=None):
+        if self.include_y0_input:
+            #this only works when the input dimension is 1, indeed how would you concatenate initial condition with the input otherwise?
+            # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
+            # reshape to make sure we have dim (batch,1,dim_output)
+            initial_cond = y[:, 0:1, :].permute(0, 2, 1)  # (batch_size, dim_state, 1)
+            # (batch_size, seq_len+output_dim, dim_state)
+            x = torch.cat((initial_cond, x), dim=1)
+
         x = self.linear_in(x)  # (batch_size, seq_len, input_dim)
 
         if self.use_positional_encoding:
@@ -67,4 +77,8 @@ class SimpleEncoder(torch.nn.Module):
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)
 
         x = self.linear_out(x)  # (seq_len, batch_size, output_dim)
-        return x
+
+        if self.include_y0_input:
+            return x[:, self.output_dim:, :]
+        else:
+            return x
