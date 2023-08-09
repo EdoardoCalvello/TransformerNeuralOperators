@@ -8,7 +8,7 @@ import wandb
 
 # Import custom modules
 from datasets import DynamicsDataModule
-from models.SimpleEncoder.SimpleEncoder_lightning import SimpleEncoderModule
+from models.EncoderDecoder_v0.EncoderDecoder_v0_lightning import EncoderDecoder_v0Module
 
 class Runner:
     def __init__(self,
@@ -108,7 +108,7 @@ class Runner:
         datamodule = DynamicsDataModule(**self.data_hyperparams)
 
         # Initialize the model
-        model = SimpleEncoderModule(**self.model_hyperparams)
+        model = EncoderDecoder_v0Module(**self.model_hyperparams)
 
         # Set callbacks for trainer (lr monitor, early stopping)
 

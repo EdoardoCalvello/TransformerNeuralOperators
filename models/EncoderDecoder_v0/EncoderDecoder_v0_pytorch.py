@@ -7,64 +7,83 @@ import torch.nn as nn
 # from torch.nn import TransformerEncoderLayer
 
 # source code
-from models.pytorch_transformer_custom import TransformerEncoder 
-from models.pytorch_transformer_custom import TransformerEncoderLayer
+from models.transformer_custom import PositionalEncoding, EncoderLayer, DecoderLayer 
 
 # Define the neural network model
-class SimpleEncoder(torch.nn.Module):
-    def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
-                 learning_rate=0.01, max_sequence_length=100,
-                 do_layer_norm=True,
-                 use_transformer=True,
-                 use_positional_encoding=True,
-                 activation='relu',
-                 dropout=0.1, norm_first=False, dim_feedforward=2048):
-        super(SimpleEncoder, self).__init__()
-        self.d_model = d_model
-        self.learning_rate = learning_rate
+class EncoderDecoder_v0(torch.nn.Module):
+    def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6, dim_feedforward=2048, max_sequence_length=100, dropout=0.1,learning_rate=0.01):
+        super(EncoderDecoder_v0, self).__init__()
+
         self.max_sequence_length = max_sequence_length
-        self.use_transformer = use_transformer
-        self.use_positional_encoding = use_positional_encoding
+        #using linear for embedding
+        self.encoder_embedding = nn.Linear(input_dim, d_model)
+        self.decoder_embedding = nn.Linear(output_dim, d_model)
+        self.positional_encoding = PositionalEncoding(d_model, self.max_sequence_length)
 
-        self.set_positional_encoding()
+        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, nhead, dim_feedforward, dropout) for _ in range(num_layers)])
+        self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, nhead, dim_feedforward, dropout) for _ in range(num_layers)])
 
-        encoder_layer = TransformerEncoderLayer(
-            d_model=d_model, nhead=nhead,
-            dropout=dropout,
-            activation=activation,
-            norm_first=norm_first,
-            do_layer_norm=do_layer_norm,
-            dim_feedforward=dim_feedforward,
-            batch_first=True)  # when batch first, expects input tensor (batch_size, Seq_len, input_dim)
-        self.encoder = TransformerEncoder(
-            encoder_layer, num_layers=num_layers)
-        # (Seq_len,batch_size,input_dim) if batch_first=False or (N, S, E) if batch_first=True.
-        # where S is the source sequence length, N is the batch size, E is the feature number, T is the target sequence length,
+        self.learning_rate = learning_rate
+        self.fc = nn.Linear(d_model, output_dim)
+        self.dropout = nn.Dropout(dropout)
 
-        self.linear_in = nn.Linear(input_dim, d_model)
-        self.linear_out = nn.Linear(d_model, output_dim)
+    def generate_mask(self, src, tgt):
+        src_mask = (src != 0).unsqueeze(1)
+        tgt_mask = (tgt != 0).unsqueeze(1)
+        seq_length = src.size(1)
+        nopeak_mask = torch.tril(torch.ones(seq_length, seq_length)).bool()
+        tgt_mask = tgt_mask & nopeak_mask
+        #import pdb; pdb.set_trace()
+        return src_mask, tgt_mask
 
-    def set_positional_encoding(self):
-        pe = torch.zeros(self.max_sequence_length, self.d_model)
-        position = torch.arange(
-            0, self.max_sequence_length, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(
-            0, self.d_model, 2, dtype=torch.float) * -(torch.log(torch.tensor(10000.0)) / self.d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0)  # Add a batch dimension
-        self.register_buffer('pe', pe)
 
-    def forward(self, x):
-        # print(x.shape) # (batch_size, seq_len, dim_state)
-        # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
-        x = self.linear_in(x)  # (batch_size, seq_len, input_dim)
+    def forward(self, src, tgt=None, validation=False):
+        src_mask, tgt_mask = self.generate_mask(src, tgt) if tgt is not None else (None, None)
 
-        if self.use_positional_encoding:
-            x = x + self.pe[:, :x.size(1)]  # (batch_size, seq_len, dim_state)
+        src_embedded = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
+        enc_output = src_embedded
 
-        if self.use_transformer:
-            x = self.encoder(x)  # (batch_size, seq_len, dim_state)
+        for enc_layer in self.encoder_layers:
+            enc_output = enc_layer(enc_output, None)  # src_mask
 
-        x = self.linear_out(x)  # (seq_len, batch_size, output_dim)
-        return x
+        if validation==False:
+            tgt_embedded = (self.positional_encoding(self.decoder_embedding(tgt)))#no dropout?
+            dec_output = tgt_embedded
+
+            for dec_layer in self.decoder_layers:
+                dec_output = dec_layer(dec_output, enc_output, None, tgt_mask)  # src_mask, tgt_mask
+
+            output = self.fc(dec_output)
+            return output
+
+        if validation==True:
+            # Autoregressive decoding during validation and testing
+            
+            # Start with a dummy token as the initial input to the decoder
+            if tgt is not None:
+                tgt_embedded = (self.positional_encoding(self.decoder_embedding(tgt))) #no dropout?
+                dummy_input = tgt_embedded[:, :1, :]  # Shape: (batch_size, 1, d_model) #src_embedded[:, :1, :]?
+            else:
+                dummy_input = torch.zeros_like(src_embedded[:, :1, :])  # Shape: (batch_size, 1, d_model) #src_embedded[:, :1, :]? 
+
+            dec_output = dummy_input
+            
+            for dec_layer in self.decoder_layers:
+                dec_output = dec_layer(dec_output, enc_output, None, None)  # src_mask, tgt_mask
+
+    
+            # Generate the output sequence using the decoder output
+            output_seq = [dec_output[:, -1:, :]]  # Store the first prediction (dummy_input)
+            for _ in range(self.max_sequence_length - 1):
+                for dec_layer in self.decoder_layers:
+                    dec_output = dec_layer(dec_output, enc_output, None, None)  # src_mask, tgt_mask
+                output_seq.append(dec_output[:, -1:, :])
+                dec_output = torch.cat(output_seq, dim=1) #[1:]
+
+            # Concatenate all the generated decoder outputs along the sequence length dimension
+            output_seq = torch.cat(output_seq, dim=1)  # Shape: (batch_size, max_seq_length, d_model)
+        
+
+            output = self.fc(output_seq)
+
+            return output

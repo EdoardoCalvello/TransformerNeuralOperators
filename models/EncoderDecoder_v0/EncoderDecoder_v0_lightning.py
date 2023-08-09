@@ -9,10 +9,10 @@ import pytorch_lightning as pl
 import wandb
 import matplotlib.pyplot as plt
 
-from models.SimpleEncoder.SimpleEncoder_pytorch import SimpleEncoder
+from models.EncoderDecoder_v0.EncoderDecoder_v0_pytorch import EncoderDecoder_v0
 
 # Define the pytorch lightning module for training the Simple Encoder model
-class SimpleEncoderModule(pl.LightningModule):
+class EncoderDecoder_v0Module(pl.LightningModule):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
@@ -23,57 +23,55 @@ class SimpleEncoderModule(pl.LightningModule):
                  lr_scheduler_params={'patience': 3,
                                       'factor': 0.5},
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
-        super(SimpleEncoderModule, self).__init__()
+        super(EncoderDecoder_v0Module, self).__init__()
         self.d_model = d_model
         self.learning_rate = learning_rate
-        self.max_sequence_length = max_sequence_length
+        self.max_sequence_length = max_sequence_length 
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
 
-        self.model = SimpleEncoder(input_dim=input_dim,
+        self.model = EncoderDecoder_v0(input_dim=input_dim,
                                     output_dim=output_dim, 
                                     d_model=d_model, 
                                     nhead=nhead, 
                                     num_layers=num_layers,
                                     max_sequence_length=max_sequence_length,
-                                    do_layer_norm=do_layer_norm,
-                                    use_transformer=use_transformer,
-                                    use_positional_encoding=use_positional_encoding,
-                                    activation=activation,
+                                    #do_layer_norm=do_layer_norm,
+                                    #use_transformer=use_transformer,
+                                    #use_positional_encoding=use_positional_encoding,
+                                    #activation=activation,
                                     dropout=dropout,
-                                    norm_first=norm_first,
+                                    #norm_first=norm_first,
                                     dim_feedforward=dim_feedforward)
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, y, validation=False):
+        return self.model(x, y, validation=validation)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch):
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+         
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
         self.log("train_loss_sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
-
-        if batch_idx == 0:
-            self.make_batch_figs(x, y, y_hat, tag='Train')
 
         return loss
 
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
 
-    def on_before_optimizer_step(self, optimizer):
-        # Compute the 2-norm for each layer and its gradient
+    '''
+        def on_before_optimizer_step(self):
+        # Compute the 2-norm for each layer
         # If using mixed precision, the gradients are already unscaled here
         self.log_gradient_norms(tag='beforeOptimizer')
-        self.log_parameter_norms(tag='beforeOptimizer')
+    '''
 
     def log_gradient_norms(self, tag=''):
         norm_type = 2.0
@@ -84,17 +82,9 @@ class SimpleEncoderModule(pl.LightningModule):
                 self.log(f"grad_norm/{tag}/{name}", grad_norm,
                          on_step=False, on_epoch=True, prog_bar=False)
 
-    def log_parameter_norms(self, tag=''):
-        norm_type = 2.0
-        for name, param in self.named_parameters():
-            param_norm = param.detach().norm(norm_type)
-            name = name.replace('.', '_')
-            self.log(f"param_norm/{tag}/{name}", param_norm,
-                     on_step=False, on_epoch=True, prog_bar=False)
-
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(x,y,validation=True)
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -105,8 +95,9 @@ class SimpleEncoderModule(pl.LightningModule):
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, tag='Val')
-        return loss
 
+        return loss
+    
     def make_batch_figs(self, x, y, y_hat, tag=''):
         idx = [0]  # plot only the first element of the batch
         y_pred = y_hat[idx].detach().cpu().numpy()
@@ -139,6 +130,8 @@ class SimpleEncoderModule(pl.LightningModule):
 
         # compute value of each encoder layer sequentially
         # choose 3 random hidden dimensions to plot throughout
+
+        '''
         idx_dim = [0, 1, 2]
         plt.figure()
         fig, axs = plt.subplots(
@@ -170,28 +163,27 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(
             "encoder_layer_plot.png")})
         os.remove("encoder_layer_plot.png")
+        '''
         plt.close('all')
 
-
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch):
         x, y = batch
-        y_hat = self.forward(x)
+        y_hat = self.forward(x,y,validation=True)
         loss = F.mse_loss(y_hat, y)
-        self.log("test_loss", loss, on_step=False,
-                 on_epoch=True, prog_bar=True)
-        
+        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
         self.log("test_loss_sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         config = {
             # REQUIRED: The scheduler instance
-            "scheduler": ReduceLROnPlateau(optimizer, verbose=True, **self.lr_scheduler_params),
+            "scheduler": ReduceLROnPlateau(optimizer, factor=0.5, patience=5, verbose=True),
             # The unit of the scheduler's step size, could also be 'step'.
             # 'epoch' updates the scheduler on epoch end whereas 'step'
             # updates it after a optimizer update.
@@ -201,7 +193,7 @@ class SimpleEncoderModule(pl.LightningModule):
             # rate after every epoch/step.
             "frequency": 1,
             # Metric to to monitor for schedulers like `ReduceLROnPlateau`
-            "monitor": self.monitor_metric,  # "val_loss",
+            "monitor": "train_loss",  # "val_loss",
             # If set to `True`, will enforce that the value specified 'monitor'
             # is available when the scheduler is updated, thus stopping
             # training if not found. If set to `False`, it will only produce a warning
@@ -215,4 +207,4 @@ class SimpleEncoderModule(pl.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": config,
-        }
+            }
