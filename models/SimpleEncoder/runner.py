@@ -20,12 +20,13 @@ class Runner:
             n_trajectories_train=10000,
             n_trajectories_val=200,
             n_trajectories_test=200,
-            seq_len=100,
-            sample_rate=0.01,
+            T=100,
+            train_sample_rate=0.01,
+            test_sample_rates=[0.001, 0.01, 0.1],
             batch_size=32,
             tune_batch_size=True,
             dyn_sys_name='Rossler',
-            monitor_metric='val_loss',
+            monitor_metric='loss/val/mse',
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             tune_initial_lr=True,
             use_transformer=True,
@@ -54,12 +55,11 @@ class Runner:
                                                     'val': n_trajectories_val,
                                                     'test': n_trajectories_test,
                                                     },
-                                 'seq_len': {'train': seq_len,
-                                             'val': seq_len,
-                                             'test': seq_len,},
-                                 'sample_rate': {'train': sample_rate,
-                                                 'val': sample_rate,
-                                                 'test': sample_rate,},
+                                 'T': {'train': T,
+                                             'val': T,
+                                             'test': T,},
+                                 'train_sample_rate': train_sample_rate,
+                                 'test_sample_rates': test_sample_rates,
                                  'batch_size': batch_size,
                                  'tune_batch_size': tune_batch_size,
                                  'dyn_sys_name': dyn_sys_name,
@@ -84,7 +84,7 @@ class Runner:
                                   'dim_feedforward': dim_feedforward,
                                   'activation': activation,
                                   # add extra sequence to allow for inclusion of output I.C.
-                                  'max_sequence_length': seq_len + len(output_inds),
+                                  'max_sequence_length': 1 + int(T/min(test_sample_rates)) + len(output_inds),
                                   }
         
         self.trainer_hyperparams = {'max_epochs': max_epochs,
@@ -126,7 +126,7 @@ class Runner:
         lr_monitor = LearningRateMonitor(logging_interval='step')
 
         # Create an early stopping callback
-        early_stopping = EarlyStopping(monitor='val_loss', patience=20, mode='min', verbose=True)
+        early_stopping = EarlyStopping(monitor='loss/val/mse', patience=20, mode='min', verbose=True)
 
         # aggregate all callbacks
         callbacks = [lr_monitor, early_stopping]
@@ -135,6 +135,9 @@ class Runner:
         # Initialize the trainer
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
                               **self.trainer_hyperparams)
+
+        # Test the model
+        trainer.test(model, datamodule=datamodule)
 
         # Tune the model
         tuner = Tuner(trainer)

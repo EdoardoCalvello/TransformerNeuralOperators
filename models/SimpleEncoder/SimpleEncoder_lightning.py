@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 
 from models.SimpleEncoder.SimpleEncoder_pytorch import SimpleEncoder
 
-from utils import tnow
-
 # Define the pytorch lightning module for training the Simple Encoder model
 class SimpleEncoderModule(pl.LightningModule):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
@@ -66,12 +64,12 @@ class SimpleEncoderModule(pl.LightningModule):
         x, y = batch
         y_hat = self.forward(x, y)
         loss = F.mse_loss(y_hat, y)
-        self.log("train_loss", loss, on_step=False,
+        self.log("loss/train/mse", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
         
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
-        self.log("train_loss_sup", loss_sup, on_step=False,
+        self.log("loss/train/sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
@@ -109,11 +107,12 @@ class SimpleEncoderModule(pl.LightningModule):
         x, y = batch
         y_hat = self.forward(x, y)
         loss = F.mse_loss(y_hat, y)
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("loss/val/mse", loss, on_step=False,
+                 on_epoch=True, prog_bar=True)
 
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
-        self.log("val_loss_sup", loss_sup, on_step=False,
+        self.log("loss/val/sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
@@ -144,7 +143,8 @@ class SimpleEncoderModule(pl.LightningModule):
         plt.grid(True)
         fig.suptitle(f'{tag} Trajectories: Prediction vs. Truth')
         plt.subplots_adjust(hspace=0.5)
-        wandb.log({f"{tag} Trajectories: Prediction vs. Truth": wandb.Image(fig)})
+        wandb.log(
+            {f"plots/{tag}/Trajectories: Prediction vs. Truth": wandb.Image(fig)})
         plt.close()
 
         # compute value of each encoder layer sequentially
@@ -176,22 +176,27 @@ class SimpleEncoderModule(pl.LightningModule):
         axs[0].legend()
         plt.subplots_adjust(hspace=0.5)
         fig.suptitle(f'{tag} Evolution of the Encoder Layers')
-        wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(fig)})
+        wandb.log({f"plots/{tag}/Encoder Layer Plot": wandb.Image(fig)})
         plt.close('all')
 
+    def test_step(self, batch, batch_idx, dataloader_idx=0):
 
-    def test_step(self, batch, batch_idx):
+        dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
+
         x, y = batch
         y_hat = self.forward(x, y)
         loss = F.mse_loss(y_hat, y)
-        self.log("test_loss", loss, on_step=False,
+        self.log(f"loss/test/mse/dt{dt}", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
         
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
-        self.log("test_loss_sup", loss_sup, on_step=False,
+        self.log(f"loss/test/sup/dt{dt}", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
+        # log plots
+        if batch_idx == 0:
+            self.make_batch_figs(x, y, y_hat, tag=f'Test/dt{dt}')
         return loss
 
     def configure_optimizers(self):

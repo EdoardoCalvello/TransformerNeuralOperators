@@ -18,7 +18,8 @@ exp_dict = {
     'n_trajectories_val': [500],
     'n_trajectories_test': [500],
     'seq_len': [100],
-    'sample_rate': [0.01],
+    'train_sample_rate': [0.01],
+    'test_sample_rates': [[0.001, 0.01, 0.1]],
     'batch_size': [16, 64, 256],
     'dyn_sys_name': ['Lorenz63'],
     'input_inds': [[0]],
@@ -30,7 +31,7 @@ exp_dict = {
                             {'patience': 2, 'factor': 0.5},
                              ],
     'max_epochs': [300],
-    'monitor_metric': ['val_loss'],
+    'monitor_metric': ['loss/val/mse'],
     # model settings
     'd_model': [512],
     'nhead': [8],

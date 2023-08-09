@@ -70,13 +70,13 @@ class Rossler(DynSys):
         return xz0
 
 class DynamicsDataset(Dataset):
-    def __init__(self, size=1000, seq_len=100, sample_rate=0.01, params={},
+    def __init__(self, size=1000, T=1, sample_rate=0.01, params={},
                  dyn_sys_name='Lorenz63',
                  input_inds=[1], output_inds=[-1],
                  **kwargs):
         '''use params to pass in parameters for the dynamical system'''
         self.size = size
-        self.seq_len = seq_len
+        self.T = T
         self.sample_rate = sample_rate
         self.dynsys = load_dyn_sys_class(dyn_sys_name)(**params)
         self.input_inds = input_inds
@@ -86,7 +86,7 @@ class DynamicsDataset(Dataset):
     
     def generate_data(self):
         # Size, Seq_len, batch_size, input_dim
-        t = torch.arange(0, self.seq_len * self.sample_rate, self.sample_rate)
+        t = torch.arange(0, self.T, self.sample_rate)
         xyz0 = self.dynsys.get_inits(self.size)
         xyz = odeint(self.dynsys.rhs, xyz0, t)
 
@@ -114,8 +114,9 @@ class DynamicsDataModule(pl.LightningDataModule):
     def __init__(self,
             batch_size=64,
             size={'train': 10000, 'val': 500, 'test': 500},
-            seq_len={'train': 100, 'val': 100, 'test': 100},
-            sample_rate={'train': 0.01, 'val': 0.01, 'test': 0.01},
+            T={'train': 1, 'val': 1, 'test': 1},
+            train_sample_rate=0.01,
+            test_sample_rates=[0.01],
             params={},
             dyn_sys_name='Lorenz63',
             input_inds=[0], output_inds=[-1],
@@ -124,8 +125,9 @@ class DynamicsDataModule(pl.LightningDataModule):
         super().__init__()
         self.batch_size = batch_size
         self.size = size
-        self.seq_len = seq_len
-        self.sample_rate = sample_rate
+        self.T = T
+        self.train_sample_rate = train_sample_rate
+        self.test_sample_rates = test_sample_rates
         self.params = params
         self.dyn_sys_name = dyn_sys_name
         self.input_inds = input_inds
@@ -135,24 +137,27 @@ class DynamicsDataModule(pl.LightningDataModule):
     def setup(self, stage: str):
         # Assign train/val datasets for use in dataloaders
         self.train = DynamicsDataset(size=self.size['train'],
-                                        seq_len=self.seq_len['train'],
-                                        sample_rate=self.sample_rate['train'],
+                                        T=self.T['train'],
+                                        sample_rate=self.train_sample_rate,
                                         params=self.params,
                                         dyn_sys_name=self.dyn_sys_name,
                                         input_inds=self.input_inds,
                                         output_inds=self.output_inds)
 
         self.val = DynamicsDataset(size=self.size['val'],
-                                        seq_len=self.seq_len['val'],
-                                        sample_rate=self.sample_rate['val'],
+                                        T=self.T['val'],
+                                        sample_rate=self.train_sample_rate,
                                         params=self.params,
                                         dyn_sys_name=self.dyn_sys_name,
                                         input_inds=self.input_inds,
                                         output_inds=self.output_inds)
 
-        self.test = DynamicsDataset(size=self.size['test'],
-                                        seq_len=self.seq_len['test'],
-                                        sample_rate=self.sample_rate['test'],
+        # build a dictionary of test datasets with different sample rates
+        self.test = {}
+        for dt in self.test_sample_rates:
+            self.test[dt] = DynamicsDataset(size=self.size['test'],
+                                        T=self.T['test'],
+                                        sample_rate=dt,
                                         params=self.params,
                                         dyn_sys_name=self.dyn_sys_name,
                                         input_inds=self.input_inds,
@@ -164,5 +169,5 @@ class DynamicsDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(self.val, batch_size=self.batch_size)
 
-    def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size)
+    def test_dataloader(self, sample_rate=None):
+        return {dt: DataLoader(self.test[dt], batch_size=self.batch_size) for dt in self.test_sample_rates}
