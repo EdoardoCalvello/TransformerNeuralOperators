@@ -152,7 +152,7 @@ class Runner:
                 print('Using CPU, so setting batch size scaler max_trials to 6 (avoid maxing RAM on a local machine)')
                 max_trials = 6
             tuner.scale_batch_size(model, max_trials=max_trials, datamodule=datamodule)
-            datamodule.batch_size = max(1, datamodule.batch_size // 2)
+            datamodule.batch_size = max(1, datamodule.batch_size // 4)
             print('Using batch size: ', datamodule.batch_size)
 
         # Tune the learning rate
