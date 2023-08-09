@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=big_run_lorenz        # Name of the job
-#SBATCH --array=0-2                   # Number of tasks in the array (e.g., 10 jobs)
+#SBATCH --job-name=l63challenge        # Name of the job
+#SBATCH --array=0-5                   # Number of tasks in the array (e.g., 10 jobs)
 #SBATCH --gres=gpu:1                   # Number of GPUs to allocate per job (1 GPU per job)
 #SBATCH --time=02:00:00                # Maximum runtime for each job (hh:mm:ss)
 #SBATCH --ntasks=1         # number of processor cores (i.e. tasks)
