@@ -9,6 +9,7 @@ def load_dyn_sys_class(dataset_name):
     dataset_classes = {
         'Lorenz63': Lorenz63,
         'Rossler': Rossler,
+        'Sinusoid': Sinusoid,
         # Add more dataset classes here for other systems
     }
 
@@ -26,6 +27,37 @@ class DynSys(object):
     
     def get_inits(self, size):
         raise NotImplementedError
+
+    def solve(self, N_traj, T, dt):
+        '''ode solver for the dynamical system'''
+        t = torch.arange(0, T, dt)
+        xyz0 = self.get_inits(N_traj)
+        xyz = odeint(self.rhs, xyz0, t)
+        # Size, Seq_len, batch_size, input_dim
+        return xyz
+
+class Sinusoid(DynSys):
+    def __init__(self, freq_low=1, freq_high=1e1, phase=0, state_dim=10):
+        super().__init__(state_dim=state_dim)
+        self.freq_low = freq_low
+        self.freq_high = freq_high
+        self.phase = phase
+
+    def solve(self, N_traj, T, dt):
+        '''explicit solution for the dynamical system using random frequencies'''
+        times = torch.arange(0, T, dt)
+        freqs = torch.empty(N_traj, self.state_dim).uniform_(self.freq_low, self.freq_high)
+        phases = torch.zeros(N_traj, self.state_dim)
+
+        # evaluate sin(freq * t + phase) for each freq, phase
+        freqs = freqs.reshape(freqs.shape[0], freqs.shape[1], 1)
+        phases = phases.reshape(*freqs.shape)
+        times = times.reshape(1, 1, times.shape[0])
+
+        xyz = torch.sin(2*torch.pi * freqs * times + phases).permute(2, 0, 1)
+
+        # Seq_len, Size (N_traj), state_dim
+        return xyz
 
 class Lorenz63(DynSys):
     def __init__(self, state_dim=3, sigma=10, rho=28, beta=8/3):
@@ -85,10 +117,8 @@ class DynamicsDataset(Dataset):
         self.generate_data()
     
     def generate_data(self):
-        # Size, Seq_len, batch_size, input_dim
-        t = torch.arange(0, self.T, self.sample_rate)
-        xyz0 = self.dynsys.get_inits(self.size)
-        xyz = odeint(self.dynsys.rhs, xyz0, t)
+        # Seq_len, Size (N_traj), state_dim
+        xyz = self.dynsys.solve(N_traj=self.size, T=self.T, dt=self.sample_rate)
 
         # use traj from the 1st component of L63 as input
         self.x = xyz[:, :, self.input_inds].permute(1, 0, 2)
