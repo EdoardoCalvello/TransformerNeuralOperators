@@ -5,11 +5,14 @@ import pytorch_lightning as pl
 
 from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer
 
+from pdb import set_trace as bp
+
 def load_dyn_sys_class(dataset_name):
     dataset_classes = {
         'Lorenz63': Lorenz63,
         'Rossler': Rossler,
         'Sinusoid': Sinusoid,
+        'ControlledODE': ControlledODE,
         # Add more dataset classes here for other systems
     }
 
@@ -58,6 +61,25 @@ class Sinusoid(DynSys):
 
         # Seq_len, Size (N_traj), state_dim
         return xyz
+
+class ControlledODE(DynSys):
+    '''dxdt = sin(x) * dudt(t), u(t) = sin(freq * t)'''
+    def __init__(self, state_dim=2, freq=1):
+        super().__init__(state_dim=state_dim)
+        self.freq = torch.tensor(freq)
+
+    def rhs(self, t, v):
+        # same as xdot = sin(x) * udot(t); with u(t) = sin(freq * t)
+        x, y = v[:, 0:1], v[:, 1:2]
+        dx = torch.sin(x) * y
+        dy = - self.freq**2 * torch.sin(self.freq * t) * torch.ones(y.shape)
+        return torch.cat([dx, dy], dim=1)
+
+    def get_inits(self, size):
+        x0 = torch.empty(size, 1).uniform_(0, 2*torch.pi)
+        y0 = self.freq * torch.cos(self.freq * 0) * torch.ones(size, 1)
+        xyz0 = torch.cat([x0, y0], dim=1)
+        return xyz0
 
 class Lorenz63(DynSys):
     def __init__(self, state_dim=3, sigma=10, rho=28, beta=8/3):
