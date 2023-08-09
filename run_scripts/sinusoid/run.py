@@ -19,7 +19,7 @@ exp_dict = {
     'n_trajectories_test': [100],
     'T': [1],
     'train_sample_rate': [0.01],
-    'test_sample_rates': [[0.001, 0.01, 0.1]],
+    'test_sample_rates': [[0.01]],
     'batch_size': [64],
     'dyn_sys_name': ['Sinusoid'],
     'input_inds': [[0]],

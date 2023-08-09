@@ -20,7 +20,7 @@ exp_dict = {
     'n_trajectories_test': [100],
     'T': [2*np.pi],
     'train_sample_rate': [0.01],
-    'test_sample_rates': [[0.5e-2, 1e-2, 2e-2]],
+    'test_sample_rates': [[0.01]],
     'batch_size': [64],
     'dyn_sys_name': ['ControlledODE'],
     'input_inds': [[1], [0]],

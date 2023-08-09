@@ -19,7 +19,7 @@ exp_dict = {
     'n_trajectories_test': [500],
     'seq_len': [100],
     'train_sample_rate': [0.01],
-    'test_sample_rates': [[0.001, 0.01, 0.1]],
+    'test_sample_rates': [[0.01]],
     'batch_size': [16, 64, 256],
     'dyn_sys_name': ['Lorenz63'],
     'input_inds': [[0]],
