@@ -61,15 +61,16 @@ class SimpleEncoder(torch.nn.Module):
         self.register_buffer('pe', pe)
 
         # for continuous time positional encoding
-        self.even_inds = torch.arange(0, self.d_model, 2).unsqueeze(0)
-        self.odd_inds = torch.arange(1, self.d_model, 2).unsqueeze(0)
+        even_inds = torch.arange(0, self.d_model, 2).unsqueeze(0)
+        odd_inds = torch.arange(1, self.d_model, 2).unsqueeze(0)
+        self.register_buffer('even_inds', even_inds)
+        self.register_buffer('odd_inds', odd_inds)
 
     def pe_continuous(self, x, times):
         '''apply a positional encoding to sequence x evaluated at times t'''
-        pe = torch.zeros(times.shape[0], self.d_model)
-        pe[:, 0::2] = torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
-        pe[:, 1::2] = torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
-        return x + pe
+        x[:, :, 0::2] += torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
+        x[:, :, 1::2] += torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
+        return x
 
     def positional_encoding(self, x):
         # x: (batch_size, seq_len, input_dim)
