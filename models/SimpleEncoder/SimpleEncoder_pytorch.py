@@ -10,6 +10,7 @@ import torch.nn as nn
 from models.pytorch_transformer_custom import TransformerEncoder 
 from models.pytorch_transformer_custom import TransformerEncoderLayer
 
+from pdb import set_trace as bp
 # Define the neural network model
 class SimpleEncoder(torch.nn.Module):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
@@ -59,7 +60,27 @@ class SimpleEncoder(torch.nn.Module):
         pe = pe.unsqueeze(0)  # Add a batch dimension
         self.register_buffer('pe', pe)
 
-    def forward(self, x, y=None):
+        # for continuous time positional encoding
+        self.even_inds = torch.arange(0, self.d_model, 2).unsqueeze(0)
+        self.odd_inds = torch.arange(1, self.d_model, 2).unsqueeze(0)
+
+    def pe_continuous(self, x, times):
+        '''apply a positional encoding to sequence x evaluated at times t'''
+        pe = torch.zeros(times.shape[0], self.d_model)
+        pe[:, 0::2] = torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
+        pe[:, 1::2] = torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
+        return x + pe
+
+    def positional_encoding(self, x):
+        # x: (batch_size, seq_len, input_dim)
+        # pe: (1, seq_len, d_model)
+        # x + pe[:, :x.size(1)]  # (batch_size, seq_len, d_model)
+        if self.use_positional_encoding:
+            return x + self.pe[:, :x.size(1)]
+        else:
+            return x
+
+    def forward(self, x, y=None, times=None):
         if self.include_y0_input:
             #this only works when the input dimension is 1, indeed how would you concatenate initial condition with the input otherwise?
             # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
@@ -70,8 +91,9 @@ class SimpleEncoder(torch.nn.Module):
 
         x = self.linear_in(x)  # (batch_size, seq_len, input_dim)
 
-        if self.use_positional_encoding:
-            x = x + self.pe[:, :x.size(1)]  # (batch_size, seq_len, dim_state)
+        # times = torch.linspace(0, 1, x.shape[1]).unsqueeze(1)
+        # can use first time because currently all batches share the same time discretization
+        x = self.pe_continuous(x, times[0].unsqueeze(1))
 
         if self.use_transformer:
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)

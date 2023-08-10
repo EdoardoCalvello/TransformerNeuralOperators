@@ -33,11 +33,11 @@ class DynSys(object):
 
     def solve(self, N_traj, T, dt):
         '''ode solver for the dynamical system'''
-        t = torch.arange(0, T, dt)
+        times = torch.arange(0, T, dt)
         xyz0 = self.get_inits(N_traj)
-        xyz = odeint(self.rhs, xyz0, t)
+        xyz = odeint(self.rhs, xyz0, times)
         # Size, Seq_len, batch_size, input_dim
-        return xyz
+        return xyz, times
 
 class Sinusoid(DynSys):
     def __init__(self, freq_low=1, freq_high=1e1, phase=0, state_dim=10):
@@ -60,7 +60,7 @@ class Sinusoid(DynSys):
         xyz = torch.sin(2*torch.pi * freqs * times + phases).permute(2, 0, 1)
 
         # Seq_len, Size (N_traj), state_dim
-        return xyz
+        return xyz, times.squeeze()
 
 class ControlledODE(DynSys):
     '''dxdt = sin(x) * dudt(t), u(t) = sin(freq * t)'''
@@ -140,7 +140,7 @@ class DynamicsDataset(Dataset):
     
     def generate_data(self):
         # Seq_len, Size (N_traj), state_dim
-        xyz = self.dynsys.solve(N_traj=self.size, T=self.T, dt=self.sample_rate)
+        xyz, times = self.dynsys.solve(N_traj=self.size, T=self.T, dt=self.sample_rate)
 
         # use traj from the 1st component of L63 as input
         self.x = xyz[:, :, self.input_inds].permute(1, 0, 2)
@@ -156,11 +156,13 @@ class DynamicsDataset(Dataset):
         self.x = self.x_normalizer.encode(self.x)
         self.y = self.y_normalizer.encode(self.y)
 
+        self.times = times
+
     def __len__(self):
         return self.size
 
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx]
+        return self.x[idx], self.y[idx], self.times
 
 class DynamicsDataModule(pl.LightningDataModule):
     def __init__(self,

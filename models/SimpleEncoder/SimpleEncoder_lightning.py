@@ -54,15 +54,15 @@ class SimpleEncoderModule(pl.LightningModule):
                                     norm_first=norm_first,
                                     dim_feedforward=dim_feedforward)
 
-    def forward(self, x, y):
+    def forward(self, x, y, times):
         if self.use_y_forward:
-            return self.model(x, y)
+            return self.model(x, y=y, times=times)
         else: 
-            return self.model(x)
+            return self.model(x, y=None, times=times)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self.forward(x, y)
+        x, y, times = batch
+        y_hat = self.forward(x, y, times)
         loss = F.mse_loss(y_hat, y)
         self.log("loss/train/mse", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
@@ -104,8 +104,8 @@ class SimpleEncoderModule(pl.LightningModule):
                      on_step=False, on_epoch=True, prog_bar=False)
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self.forward(x, y)
+        x, y, times = batch
+        y_hat = self.forward(x, y, times)
         loss = F.mse_loss(y_hat, y)
         self.log("loss/val/mse", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
@@ -183,8 +183,8 @@ class SimpleEncoderModule(pl.LightningModule):
 
         dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
 
-        x, y = batch
-        y_hat = self.forward(x, y)
+        x, y, times = batch
+        y_hat = self.forward(x, y, times)
         loss = F.mse_loss(y_hat, y)
         self.log(f"loss/test/mse/dt{dt}", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
