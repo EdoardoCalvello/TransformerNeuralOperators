@@ -136,9 +136,6 @@ class Runner:
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
                               **self.trainer_hyperparams)
 
-        # Test the model
-        trainer.test(model, datamodule=datamodule)
-
         # Tune the model
         tuner = Tuner(trainer)
 
