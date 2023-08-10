@@ -6,7 +6,7 @@ import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='basic_l63_DEBUG')
+parser.add_argument('--project_name', type=str, default='basic_l63_v0_decoder')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
@@ -17,7 +17,7 @@ exp_dict = {
     'n_trajectories_train': [1000], # smaller dataset for debugging
     'n_trajectories_val': [100],
     'n_trajectories_test': [100],
-    'T': [2],
+    'T': [1],
     'train_sample_rate': [0.01],
     'test_sample_rates': [[0.01]],
     'batch_size': [64],

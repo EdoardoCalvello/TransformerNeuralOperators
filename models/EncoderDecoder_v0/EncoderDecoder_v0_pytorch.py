@@ -67,23 +67,14 @@ class EncoderDecoder_v0(torch.nn.Module):
                 dummy_input = torch.zeros_like(src_embedded[:, :1, :])  # Shape: (batch_size, 1, d_model) #src_embedded[:, :1, :]? 
 
             dec_output = dummy_input
+            output_seq = dec_output  # Store the first prediction (dummy_input)
             
-            for dec_layer in self.decoder_layers:
-                dec_output = dec_layer(dec_output, enc_output, None, None)  # src_mask, tgt_mask
-
-    
-            # Generate the output sequence using the decoder output
-            output_seq = [dec_output[:, -1:, :]]  # Store the first prediction (dummy_input)
             for _ in range(self.max_sequence_length - 1):
                 for dec_layer in self.decoder_layers:
-                    dec_output = dec_layer(dec_output, enc_output, None, None)  # src_mask, tgt_mask
-                output_seq.append(dec_output[:, -1:, :])
-                dec_output = torch.cat(output_seq, dim=1) #[1:]
-
-            # Concatenate all the generated decoder outputs along the sequence length dimension
-            output_seq = torch.cat(output_seq, dim=1)  # Shape: (batch_size, max_seq_length, d_model)
-        
-
+                    dec_output = dec_layer(dec_output, enc_output, None, None)
+                output_seq = torch.cat((output_seq, output_seq[:,-1,:]+dec_output[:, -1:, :]), dim=1)  # Shape: (batch_size, seq_length, d_model)
+                dec_output = output_seq  
+            
             output = self.fc(output_seq)
 
             return output
