@@ -137,7 +137,7 @@ class EncoderDecoder_v0Module(pl.LightningModule):
         fig, axs = plt.subplots(
             nrows=len(idx_dim), ncols=1, figsize=(10, 6), sharex=True)
 
-        x_layer_output = self.model.linear_in(x[idx])
+        x_layer_output = self.model.encoder_embedding(x[idx])
         for j, id in enumerate(idx_dim):
             axs[j].set_title(
                 'Embedding dimension {} over layer depth'.format(id))
@@ -146,23 +146,34 @@ class EncoderDecoder_v0Module(pl.LightningModule):
                             :, :, id].squeeze(),
                         linewidth=3, alpha=0.8, label='Layer {}'.format(0),
                         color=plt.cm.viridis(0))
-        for i, layer in enumerate(self.model.encoder.layers):
-            x_layer_output = layer(x_layer_output)
-            # Plot the output of this layer
+        for i, layer in enumerate(self.model.encoder_layers):
+            x_layer_output = layer(x_layer_output,None) #src_mask=None
             for j, id in enumerate(idx_dim):
                 axs[j].plot(x_arange,
                             x_layer_output.detach().cpu().numpy()[
                                 :, :, id].squeeze(),
                             linewidth=3, alpha=0.8, label=f'Layer {i+1}',
                             color=plt.cm.viridis((i+1) / (len(self.model.encoder.layers))))
+        y_layer_output = self.model.decoder_embedding(y[idx,0,:])
+        for _ in range(self.max_sequence_length - 2):
+                for dec_layer in self.model.decoder_layers:
+                    dec_output = dec_layer(dec_output, x_layer_output, None, None)
+            
+            # Plot the output of this layer
+        for j, id in enumerate(idx_dim):
+            axs[j].plot(x_arange,
+                        x_layer_output.detach().cpu().numpy()[
+                            :, :, id].squeeze(),
+                        linewidth=3, alpha=0.8, label=f'Layer {i+1}',
+                        color=plt.cm.viridis((i+1) / (len(self.model.encoder.layers))))
 
         axs[0].legend()
         plt.subplots_adjust(hspace=0.5)
-        fig.suptitle(f'{tag} Evolution of the Encoder Layers')
-        plt.savefig("encoder_layer_plot.png")
-        wandb.log({f"{tag} Encoder Layer Plot": wandb.Image(
-            "encoder_layer_plot.png")})
-        os.remove("encoder_layer_plot.png")
+        fig.suptitle(f'{tag} Evolution of the Encoder and Decoder Layers')
+        plt.savefig("encoder_decoder_layer_plot.png")
+        wandb.log({f"{tag} Encoder and Decoder Layer Plot": wandb.Image(
+            "encoder_decoder_layer_plot.png")})
+        os.remove("encoder_decoder_layer_plot.png")
         '''
         plt.close('all')
 
