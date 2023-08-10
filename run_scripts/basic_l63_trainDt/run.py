@@ -18,7 +18,7 @@ exp_dict = {
     'n_trajectories_val': [500],
     'n_trajectories_test': [500],
     'T': [2],
-    'use_positional_encoding': ['continuous', 'Discrete', None],
+    'use_positional_encoding': ['continuous', 'discrete', None],
     'train_sample_rate': [1e-2],
     'test_sample_rates': [[0.5e-2, 1e-2, 2e-2]],
     'batch_size': [64],
