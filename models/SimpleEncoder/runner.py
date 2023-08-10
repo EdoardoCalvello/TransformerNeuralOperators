@@ -30,7 +30,7 @@ class Runner:
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             tune_initial_lr=True,
             use_transformer=True,
-            use_positional_encoding=True,
+            use_positional_encoding='continuous',
             include_y0_input=False,
             do_layer_norm=True,
             norm_first=False,

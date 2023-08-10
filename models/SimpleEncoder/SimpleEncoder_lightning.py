@@ -17,7 +17,7 @@ class SimpleEncoderModule(pl.LightningModule):
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
                  use_transformer=True,
-                 use_positional_encoding=True,
+                 use_positional_encoding='continuous',
                  include_y0_input=False,
                  activation='relu',
                  monitor_metric='train_loss',

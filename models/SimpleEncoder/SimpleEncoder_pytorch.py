@@ -17,7 +17,7 @@ class SimpleEncoder(torch.nn.Module):
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
                  use_transformer=True,
-                 use_positional_encoding=True,
+                 use_positional_encoding='continuous',
                  include_y0_input=False,
                  activation='relu',
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
@@ -72,12 +72,14 @@ class SimpleEncoder(torch.nn.Module):
         x[:, :, 1::2] += torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
         return x
 
-    def positional_encoding(self, x):
+    def positional_encoding(self, x, times):
         # x: (batch_size, seq_len, input_dim)
         # pe: (1, seq_len, d_model)
         # x + pe[:, :x.size(1)]  # (batch_size, seq_len, d_model)
-        if self.use_positional_encoding:
+        if self.use_positional_encoding=='discrete':
             return x + self.pe[:, :x.size(1)]
+        elif self.use_positional_encoding=='continuous':
+            return self.pe_continuous(x, times)
         else:
             return x
 
@@ -94,7 +96,7 @@ class SimpleEncoder(torch.nn.Module):
 
         # times = torch.linspace(0, 1, x.shape[1]).unsqueeze(1)
         # can use first time because currently all batches share the same time discretization
-        x = self.pe_continuous(x, times[0].unsqueeze(1))
+        x = self.positional_encoding(x, times[0].unsqueeze(1))
 
         if self.use_transformer:
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)
