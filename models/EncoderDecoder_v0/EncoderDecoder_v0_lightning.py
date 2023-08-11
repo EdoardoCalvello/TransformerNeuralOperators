@@ -50,7 +50,7 @@ class EncoderDecoder_v0Module(pl.LightningModule):
         return self.model(x, y, validation=validation)
 
     def training_step(self, batch):
-        x, y = batch
+        x, y, times = batch
         y_hat = self.forward(x,y)
         loss = F.mse_loss(y_hat, y)
         self.log("train_loss", loss, on_step=False,
@@ -83,7 +83,8 @@ class EncoderDecoder_v0Module(pl.LightningModule):
                          on_step=False, on_epoch=True, prog_bar=False)
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        
+        x, y, times = batch
         y_hat = self.forward(x,y,validation=True)
         loss = F.mse_loss(y_hat, y)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
@@ -178,7 +179,7 @@ class EncoderDecoder_v0Module(pl.LightningModule):
         plt.close('all')
 
     def test_step(self, batch):
-        x, y = batch
+        x, y, times = batch
         y_hat = self.forward(x,y,validation=True)
         loss = F.mse_loss(y_hat, y)
         self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)

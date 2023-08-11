@@ -51,22 +51,24 @@ class EncoderDecoder_v0(torch.nn.Module):
             dec_output = tgt_embedded
 
             
-            for dec_layer in self.decoder_layers:
-                dec_output = dec_layer(dec_output, enc_output, None, tgt_mask)  # src_mask, tgt_mask
+            #for dec_layer in self.decoder_layers:
+            #    dec_output = dec_layer(dec_output, enc_output, None, tgt_mask)  # src_mask, tgt_mask
             
-            '''
+            
             ###delete below####
             output_seq = dec_output[:,0,:].unsqueeze(dim=1)  # Store the first prediction (dummy_input)
-            
+            #dec_output = output_seq #delete if you want decoder to learn from unrolling truth
             for i in range(self.max_sequence_length - 1):
+                dec_output = tgt_embedded[:,:i+1,:]#.unsqueeze(dim=1) #undelete if you want decoder to learn from unrolling truth
                 for dec_layer in self.decoder_layers:
-                    dec_output = dec_layer(tgt_embedded[:,i,:].unsqueeze(dim=1), enc_output, None, None)
-                output_seq = torch.cat((output_seq, dec_output[:,-1,:].unsqueeze(dim=1)), dim=1)
-                #output_seq = torch.cat((output_seq, output_seq[:,-1,:].unsqueeze(dim=1)+0.1*dec_output[:, -1, :].unsqueeze(dim=1)), dim=1)  # Shape: (batch_size, seq_length, d_model) 
+                    dec_output = dec_layer(dec_output, enc_output, None, None)
+                #output_seq = torch.cat((output_seq, dec_output[:,-1,:].unsqueeze(dim=1)), dim=1)
+                output_seq = torch.cat((output_seq, output_seq[:,-1,:].unsqueeze(dim=1)+ 0.01*dec_output[:, -1, :].unsqueeze(dim=1)), dim=1)  # Shape: (batch_size, seq_length, d_model)
+                #dec_output = output_seq #delete if you want decoder to learn from unrolling truth 
             output = self.fc(output_seq)
             ###delete above####
-            '''
-            output = self.fc(dec_output)
+            
+            #output = self.fc(dec_output)
             return output
 
         if validation==True:
@@ -85,8 +87,8 @@ class EncoderDecoder_v0(torch.nn.Module):
             for _ in range(self.max_sequence_length - 1):
                 for dec_layer in self.decoder_layers:
                     dec_output = dec_layer(dec_output, enc_output, None, None)
-                output_seq = torch.cat((output_seq, dec_output[:,-1,:].unsqueeze(dim=1)), dim=1)
-                #output_seq = torch.cat((output_seq, output_seq[:,-1,:].unsqueeze(dim=1)+0.1*dec_output[:, -1, :].unsqueeze(dim=1)), dim=1)  # Shape: (batch_size, seq_length, d_model)
+                #output_seq = torch.cat((output_seq, dec_output[:,-1,:].unsqueeze(dim=1)), dim=1)
+                output_seq = torch.cat((output_seq, output_seq[:,-1,:].unsqueeze(dim=1)+ 0.01*dec_output[:, -1, :].unsqueeze(dim=1)), dim=1)  # Shape: (batch_size, seq_length, d_model)
                 dec_output = output_seq  
             
             output = self.fc(output_seq)
