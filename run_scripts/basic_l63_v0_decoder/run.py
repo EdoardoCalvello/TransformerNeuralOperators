@@ -14,10 +14,10 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'n_trajectories_train': [1000], # smaller dataset for debugging
-    'n_trajectories_val': [100],
-    'n_trajectories_test': [100],
-    'T': [1],
+    'n_trajectories_train': [10000], # smaller dataset for debugging
+    'n_trajectories_val': [1000],
+    'n_trajectories_test': [1000],
+    'T': [2],
     'train_sample_rate': [0.01],
     'test_sample_rates': [[0.01]],
     'batch_size': [64],
@@ -30,7 +30,7 @@ exp_dict = {
     'lr_scheduler_params': [
                             {'patience': 2, 'factor': 0.5},
                              ],
-    'max_epochs': [100],
+    'max_epochs': [200],
     'monitor_metric': ['loss/val/mse'],
     # model settings (modest model size for debugging)
     'd_model': [128],
