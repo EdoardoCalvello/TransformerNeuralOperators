@@ -25,6 +25,7 @@ class SimpleEncoderModule(pl.LightningModule):
                                       'factor': 0.5},
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
         super(SimpleEncoderModule, self).__init__()
+        self.first_forward = True # for plotting model-related things once at beginnning of training
         self.d_model = d_model
         self.learning_rate = learning_rate
         self.max_sequence_length = max_sequence_length
@@ -55,6 +56,11 @@ class SimpleEncoderModule(pl.LightningModule):
                                     dim_feedforward=dim_feedforward)
 
     def forward(self, x, y, times):
+        times = times[0].unsqueeze(1)
+        if self.first_forward:
+            self.first_forward = False
+            self.plot_positional_encoding(x, times)
+
         if self.use_y_forward:
             return self.model(x, y=y, times=times)
         else: 
@@ -118,6 +124,16 @@ class SimpleEncoderModule(pl.LightningModule):
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, tag='Val')
         return loss
+
+    def plot_positional_encoding(self, x, times):
+        pe = self.model.positional_encoding(x, times)
+        plt.figure()
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        plt.imshow(pe.detach().cpu().numpy(), cmap='viridis', aspect='auto')
+        plt.colorbar()
+        plt.title('Positional Encoding')
+        wandb.log({f"plots/Positional Encoding": wandb.Image(fig)})
+        plt.close()
 
     def make_batch_figs(self, x, y, y_hat, tag=''):
         idx = [0]  # plot only the first element of the batch

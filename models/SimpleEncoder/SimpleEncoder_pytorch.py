@@ -10,7 +10,6 @@ import torch.nn as nn
 from models.pytorch_transformer_custom import TransformerEncoder 
 from models.pytorch_transformer_custom import TransformerEncoderLayer
 
-from pdb import set_trace as bp
 # Define the neural network model
 class SimpleEncoder(torch.nn.Module):
     def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
@@ -58,7 +57,7 @@ class SimpleEncoder(torch.nn.Module):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)  # Add a batch dimension
-        self.register_buffer('pe', pe)
+        self.register_buffer('pe_discrete', pe)
 
         # for continuous time positional encoding
         even_inds = torch.arange(0, self.d_model, 2).unsqueeze(0)
@@ -66,22 +65,28 @@ class SimpleEncoder(torch.nn.Module):
         self.register_buffer('even_inds', even_inds)
         self.register_buffer('odd_inds', odd_inds)
 
-    def pe_continuous(self, x, times):
+    def pe_continuous(self, times):
         '''apply a positional encoding to sequence x evaluated at times t'''
-        x[:, :, 0::2] += torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
-        x[:, :, 1::2] += torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
-        return x
+        pe = torch.zeros(times.shape[0], self.d_model)
+        pe[:, 0::2] = torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
+        pe[:, 1::2] = torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
+        return pe
 
     def positional_encoding(self, x, times):
         # x: (batch_size, seq_len, input_dim)
         # pe: (1, seq_len, d_model)
         # x + pe[:, :x.size(1)]  # (batch_size, seq_len, d_model)
         if self.use_positional_encoding=='discrete':
-            return x + self.pe[:, :x.size(1)]
+            pe = self.pe_discrete[:, :x.size(1)]
         elif self.use_positional_encoding=='continuous':
-            return self.pe_continuous(x, times)
-        else:
-            return x
+            pe = self.pe_continuous(times)
+        else: # no positional encoding
+            pe = torch.tensor(0)
+
+        return pe
+
+    def apply_positional_encoding(self, x, times):
+        return x + self.positional_encoding(x, times)
 
     def forward(self, x, y=None, times=None):
         if self.include_y0_input:
@@ -96,7 +101,7 @@ class SimpleEncoder(torch.nn.Module):
 
         # times = torch.linspace(0, 1, x.shape[1]).unsqueeze(1)
         # can use first time because currently all batches share the same time discretization
-        x = self.positional_encoding(x, times[0].unsqueeze(1))
+        x = self.apply_positional_encoding(x, times)
 
         if self.use_transformer:
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)
