@@ -67,7 +67,8 @@ class SimpleEncoder(torch.nn.Module):
 
     def pe_continuous(self, times):
         '''apply a positional encoding to sequence x evaluated at times t'''
-        pe = torch.zeros(times.shape[0], self.d_model)
+        # .to() sends the tensor to the device of the argument
+        pe = torch.zeros(times.shape[0], self.d_model).to(times)
         pe[:, 0::2] = torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
         pe[:, 1::2] = torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
         return pe
@@ -81,7 +82,8 @@ class SimpleEncoder(torch.nn.Module):
         elif self.use_positional_encoding=='continuous':
             pe = self.pe_continuous(times)
         else: # no positional encoding
-            pe = torch.tensor(0)
+            # .to() sends the tensor to the device of the argument
+            pe = torch.tensor(0).to(x)
 
         return pe
 
