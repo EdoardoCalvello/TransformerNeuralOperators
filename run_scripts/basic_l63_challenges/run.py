@@ -14,12 +14,12 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'n_trajectories_train': [1000], # smaller dataset for debugging
-    'n_trajectories_val': [100],
-    'n_trajectories_test': [100],
+    'n_trajectories_train': [5000], # smaller dataset for debugging
+    'n_trajectories_val': [500],
+    'n_trajectories_test': [500],
     'T': [2],
     'train_sample_rate': [0.01],
-    'test_sample_rates': [[0.01]],
+    'test_sample_rates': [[0.5e-2, 1e-2, 2e-2]],
     'batch_size': [64],
     'dyn_sys_name': ['Lorenz63'],
     'input_inds': [[0], [2]],
