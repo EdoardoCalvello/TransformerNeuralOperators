@@ -79,7 +79,7 @@ class SimpleEncoderModule(pl.LightningModule):
                  on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
-            self.make_batch_figs(x, y, y_hat, tag='Train')
+            self.make_batch_figs(x, y, y_hat, times, tag='Train')
 
         return loss
 
@@ -122,7 +122,7 @@ class SimpleEncoderModule(pl.LightningModule):
                  on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
-            self.make_batch_figs(x, y, y_hat, tag='Val')
+            self.make_batch_figs(x, y, y_hat, times, tag='Val')
         return loss
 
     def plot_positional_encoding(self, x, times):
@@ -135,12 +135,10 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log({f"plots/Positional Encoding": wandb.Image(fig)})
         plt.close()
 
-    def make_batch_figs(self, x, y, y_hat, tag='', idx=[0,1,2]):
+    def make_batch_figs(self, x, y, y_hat, times, tag='', idx=[0,1,2]):
         y_pred = y_hat[idx].detach().cpu().numpy()
         y_true = y[idx].detach().cpu().numpy()
-
-        # time domain
-        x_arange = torch.arange(0, x.shape[1], 1)
+        times = times[idx].detach().cpu().numpy()
 
         # Plot Trajectories
         plt.figure()
@@ -149,9 +147,9 @@ class SimpleEncoderModule(pl.LightningModule):
 
         for col, idx_val in enumerate(idx):
             for i, ax in enumerate(axs[:, col]):
-                ax.plot(x_arange.detach().cpu().numpy(), y_true[idx_val, :, i], linewidth=3,
+                ax.plot(times[idx_val], y_true[idx_val, :, i], linewidth=3,
                         color='blue', label='Ground Truth')
-                ax.plot(x_arange.detach().cpu().numpy(), y_pred[idx_val, :, i], linewidth=3,
+                ax.plot(times[idx_val], y_pred[idx_val, :, i], linewidth=3,
                         color='red', label='Prediction')
                 ax.set_xlabel('Time')
                 ax.set_ylabel('Prediction')
@@ -178,7 +176,7 @@ class SimpleEncoderModule(pl.LightningModule):
             for j, id in enumerate(idx_dim):
                 axs[j, col].set_title(
                     f'Embedding dimension {id} over layer depth (Index {idx_val})')
-                axs[j, col].plot(x_arange,
+                axs[j, col].plot(times[idx_val],
                                 x_layer_output.detach().cpu().numpy()[
                                     :, id].squeeze(),
                                 linewidth=3, alpha=0.8, label='Layer {}'.format(0),
@@ -187,7 +185,7 @@ class SimpleEncoderModule(pl.LightningModule):
                 x_layer_output = layer(x_layer_output)
                 # Plot the output of this layer
                 for j, id in enumerate(idx_dim):
-                    axs[j, col].plot(x_arange,
+                    axs[j, col].plot(times[idx_val],
                                     x_layer_output.detach().cpu().numpy()[
                                         :, id].squeeze(),
                                     linewidth=3, alpha=0.8, label=f'Layer {i+1}',
@@ -216,7 +214,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         # log plots
         if batch_idx == 0:
-            self.make_batch_figs(x, y, y_hat, tag=f'Test/dt{dt}')
+            self.make_batch_figs(x, y, y_hat, times, tag=f'Test/dt{dt}')
         return loss
 
     def configure_optimizers(self):
