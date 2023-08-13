@@ -135,28 +135,31 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log({f"plots/Positional Encoding": wandb.Image(fig)})
         plt.close()
 
-    def make_batch_figs(self, x, y, y_hat, tag=''):
-        idx = [0]  # plot only the first element of the batch
+    def make_batch_figs(self, x, y, y_hat, tag='', idx=[0,1,2]):
         y_pred = y_hat[idx].detach().cpu().numpy()
         y_true = y[idx].detach().cpu().numpy()
 
         # time domain
         x_arange = torch.arange(0, x.shape[1], 1)
 
+        # Plot Trajectories
         plt.figure()
         fig, axs = plt.subplots(
-            nrows=y_true.shape[-1], ncols=1, figsize=(10, 6), sharex=True, squeeze=False)
-        for i, ax in enumerate(axs):
-            ax = ax[0] # squeeze
-            ax.plot(x_arange.detach().cpu().numpy(), y_true[:,:,i].squeeze(), linewidth=3,
+            nrows=y_true.shape[-1], ncols=len(idx), figsize=(10 * len(idx), 6 * y_true.shape[-1]), sharex=True, squeeze=False)
+
+        for col, idx_val in enumerate(idx):
+            for i, ax in enumerate(axs[:, col]):
+                ax.plot(x_arange.detach().cpu().numpy(), y_true[idx_val, :, i], linewidth=3,
                         color='blue', label='Ground Truth')
-            ax.plot(x_arange.detach().cpu().numpy(), y_pred[:,:,i].squeeze(), linewidth=3,
+                ax.plot(x_arange.detach().cpu().numpy(), y_pred[idx_val, :, i], linewidth=3,
                         color='red', label='Prediction')
-            ax.set_xlabel('Time')
-            ax.set_ylabel('Prediction')
-            ax.set_title('Trajectory for predicted component {}'.format(i))
-        axs[0][0].legend() # only put legend on first plot
-        plt.grid(True)
+                ax.set_xlabel('Time')
+                ax.set_ylabel('Prediction')
+                ax.set_title(
+                    f'Trajectory for predicted component {i} (Index {idx_val})')
+                if col == 0:
+                    ax.legend()
+
         fig.suptitle(f'{tag} Trajectories: Prediction vs. Truth')
         plt.subplots_adjust(hspace=0.5)
         wandb.log(
@@ -168,28 +171,29 @@ class SimpleEncoderModule(pl.LightningModule):
         idx_dim = [0, 1, 2]
         plt.figure()
         fig, axs = plt.subplots(
-            nrows=len(idx_dim), ncols=1, figsize=(10, 6), sharex=True)
+            nrows=len(idx_dim), ncols=len(idx), figsize=(10 * len(idx), 6 * len(idx_dim)), sharex=True)
 
-        x_layer_output = self.model.linear_in(x[idx])
-        for j, id in enumerate(idx_dim):
-            axs[j].set_title(
-                'Embedding dimension {} over layer depth'.format(id))
-            axs[j].plot(x_arange,
-                        x_layer_output.detach().cpu().numpy()[
-                            :, :, id].squeeze(),
-                        linewidth=3, alpha=0.8, label='Layer {}'.format(0),
-                        color=plt.cm.viridis(0))
-        for i, layer in enumerate(self.model.encoder.layers):
-            x_layer_output = layer(x_layer_output)
-            # Plot the output of this layer
+        for col, idx_val in enumerate(idx):
+            x_layer_output = self.model.linear_in(x[idx_val])
             for j, id in enumerate(idx_dim):
-                axs[j].plot(x_arange,
-                            x_layer_output.detach().cpu().numpy()[
-                                :, :, id].squeeze(),
-                            linewidth=3, alpha=0.8, label=f'Layer {i+1}',
-                            color=plt.cm.viridis((i+1) / (len(self.model.encoder.layers))))
+                axs[j, col].set_title(
+                    f'Embedding dimension {id} over layer depth (Index {idx_val})')
+                axs[j, col].plot(x_arange,
+                                x_layer_output.detach().cpu().numpy()[
+                                    :, id].squeeze(),
+                                linewidth=3, alpha=0.8, label='Layer {}'.format(0),
+                                color=plt.cm.viridis(0))
+            for i, layer in enumerate(self.model.encoder.layers):
+                x_layer_output = layer(x_layer_output)
+                # Plot the output of this layer
+                for j, id in enumerate(idx_dim):
+                    axs[j, col].plot(x_arange,
+                                    x_layer_output.detach().cpu().numpy()[
+                                        :, id].squeeze(),
+                                    linewidth=3, alpha=0.8, label=f'Layer {i+1}',
+                                    color=plt.cm.viridis((i+1) / (len(self.model.encoder.layers))))
 
-        axs[0].legend()
+        axs[0, 0].legend()
         plt.subplots_adjust(hspace=0.5)
         fig.suptitle(f'{tag} Evolution of the Encoder Layers')
         wandb.log({f"plots/{tag}/Encoder Layer Plot": wandb.Image(fig)})
