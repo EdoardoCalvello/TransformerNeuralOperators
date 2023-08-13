@@ -18,13 +18,13 @@ exp_dict = {
     'n_trajectories_train': [5000], # smaller dataset for debugging
     'n_trajectories_val': [500],
     'n_trajectories_test': [500],
-    'T': [2*np.pi],
-    'train_sample_rate': [0.01],
-    'test_sample_rates': [[0.5e-2, 1e-2, 2e-2]],
+    'T': [10*np.pi],
+    'train_sample_rate': [0.1],
+    'test_sample_rates': [[0.5e-1, 1e-1, 2e-1]],
     'batch_size': [64],
     'dyn_sys_name': ['ControlledODE'],
-    'input_inds': [[1], [0]],
-    'output_inds': [[0], [1]],
+    'input_inds': [[0], [1]],
+    'output_inds': [[2], [2]],
     # optimizer settings
     'learning_rate': [1e-3],
     'dropout': [1e-4],

@@ -135,7 +135,8 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log({f"plots/Positional Encoding": wandb.Image(fig)})
         plt.close()
 
-    def make_batch_figs(self, x, y, y_hat, times, tag='', idx=[0,1,2]):
+    def make_batch_figs(self, x, y, y_hat, times, tag='', n_examples=5):
+        idx = torch.arange(n_examples)
         y_pred = y_hat[idx].detach().cpu().numpy()
         y_true = y[idx].detach().cpu().numpy()
         times = times[idx].detach().cpu().numpy()

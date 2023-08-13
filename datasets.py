@@ -64,21 +64,39 @@ class Sinusoid(DynSys):
 
 class ControlledODE(DynSys):
     '''dxdt = sin(x) * dudt(t), u(t) = sin(freq * t)'''
-    def __init__(self, state_dim=2, freq=1):
+    def __init__(self, state_dim=3, freq_low=0.1, freq_high=2):
         super().__init__(state_dim=state_dim)
-        self.freq = torch.tensor(freq)
+        self.freq_low = torch.tensor(freq_low)
+        self.freq_high = torch.tensor(freq_high)
 
-    def rhs(self, t, v):
+    def rhs(self, t, x):
+        '''
+        udot = freq * cos(freq * t),         u(0) = 0
+        uddot = - freq**2 * sin(freq * t),   udot(0) = freq
+        vdot = sin(v) * udot(t),             v(0) = 0
+        '''
         # same as xdot = sin(x) * udot(t); with u(t) = sin(freq * t)
-        x, y = v[:, 0:1], v[:, 1:2]
-        dx = torch.sin(x) * y
-        dy = - self.freq**2 * torch.sin(self.freq * t) * torch.ones(y.shape)
-        return torch.cat([dx, dy], dim=1)
+        # x, y = v[:, 0:1], v[:, 1:2]
+
+        u, udot, v = x[:, 0:1], x[:, 1:2], x[:, 2:3]
+
+        du = self.freq * torch.cos(self.freq * t)
+        ddu = - self.freq**2 * torch.sin(self.freq * t)
+        dv = torch.sin(v) * udot
+        return torch.cat([du, ddu, dv], dim=1)
 
     def get_inits(self, size):
-        x0 = torch.empty(size, 1).uniform_(0, 2*torch.pi)
-        y0 = self.freq * torch.cos(self.freq * 0) * torch.ones(size, 1)
-        xyz0 = torch.cat([x0, y0], dim=1)
+
+        # sample freq from uniform distribution
+        self.freq = torch.empty(size, 1).uniform_(self.freq_low, self.freq_high)
+
+        # sample initial conditions for u, udot, v
+        u0 = torch.zeros(size, 1)
+        udot0 = self.freq
+        v0 = torch.ones(size, 1)
+
+        # concatenate initial conditions
+        xyz0 = torch.cat([u0, udot0, v0], dim=1)
         return xyz0
 
 class Lorenz63(DynSys):
