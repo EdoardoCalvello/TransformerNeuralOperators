@@ -88,7 +88,13 @@ class SimpleEncoder(torch.nn.Module):
         return pe
 
     def apply_positional_encoding(self, x, times):
-        return x + self.positional_encoding(x, times)
+        pe = self.positional_encoding(x, times)
+        if self.include_y0_input:
+            x[:, self.output_dim:, :] += pe
+            x[:, :self.output_dim, :] += 2
+        else:
+            x += pe
+        return x
 
     def forward(self, x, y=None, times=None):
         if self.include_y0_input:
