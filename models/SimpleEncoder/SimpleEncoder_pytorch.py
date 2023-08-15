@@ -93,9 +93,9 @@ class SimpleEncoder(torch.nn.Module):
             x[:, self.output_dim:, :] += pe
             #'include_y0_input': ['uniform', 'staggered', False],
             if self.include_y0_input == 'uniform':
-                x[:, :self.output_dim, :] += 2
+                x[:, :self.output_dim, :] += torch.tensor(2).to(x)
             elif self.include_y0_input == 'staggered':
-                x[:, :self.output_dim, :] += torch.arange(2, self.output_dim+2).unsqueeze(0).unsqueeze(2)
+                x[:, :self.output_dim, :] += torch.arange(2, self.output_dim+2).unsqueeze(0).unsqueeze(2).to(x)
             else:
                 raise ValueError('include_y0_input must be one of [uniform, staggered, False]')
         else:
