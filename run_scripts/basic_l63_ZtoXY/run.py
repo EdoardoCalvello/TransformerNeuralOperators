@@ -6,7 +6,7 @@ import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='l63_challenges_ZtoXY')
+parser.add_argument('--project_name', type=str, default='l63_challenges_ZtoXY_v2')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
@@ -33,7 +33,7 @@ exp_dict = {
     'max_epochs': [100],
     'monitor_metric': ['loss/val/mse'],
     # model settings (modest model size for debugging)
-    'include_y0_input': [True, False],
+    'include_y0_input': ['uniform', 'staggered', False],
     'd_model': [128],
     'nhead': [8],
     'num_layers': [6],

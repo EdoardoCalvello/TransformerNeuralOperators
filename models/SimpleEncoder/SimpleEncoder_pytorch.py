@@ -91,7 +91,13 @@ class SimpleEncoder(torch.nn.Module):
         pe = self.positional_encoding(x, times)
         if self.include_y0_input:
             x[:, self.output_dim:, :] += pe
-            x[:, :self.output_dim, :] += 2
+            #'include_y0_input': ['uniform', 'staggered', False],
+            if self.include_y0_input == 'uniform':
+                x[:, :self.output_dim, :] += 2
+            elif self.include_y0_input == 'staggered':
+                x[:, :self.output_dim, :] += torch.arange(2, self.output_dim+2).unsqueeze(0).unsqueeze(2)
+            else:
+                raise ValueError('include_y0_input must be one of [uniform, staggered, False]')
         else:
             x += pe
         return x
