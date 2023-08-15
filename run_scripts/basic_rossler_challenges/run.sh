@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=Rosschallenge        # Name of the job
-#SBATCH --array=0-127                   # Number of tasks in the array (e.g., 10 jobs)
+#SBATCH --array=0-191                   # Number of tasks in the array (e.g., 10 jobs)
 #SBATCH --gres=gpu:1                   # Number of GPUs to allocate per job (1 GPU per job)
 #SBATCH --time=03:00:00                # Maximum runtime for each job (hh:mm:ss)
 #SBATCH --ntasks=1         # number of processor cores (i.e. tasks)
