@@ -33,7 +33,7 @@ exp_dict = {
     'max_epochs': [100],
     'monitor_metric': ['loss/val/mse'],
     # model settings (modest model size for debugging)
-    'include_y0': [True, False],
+    'include_y0_input': [True, False],
     'd_model': [128],
     'nhead': [8],
     'num_layers': [6],
