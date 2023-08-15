@@ -14,16 +14,16 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'n_trajectories_train': [5000, 10000, 50000], # smaller dataset for debugging
+    'n_trajectories_train': [5000, 10000], # smaller dataset for debugging
     'n_trajectories_val': [500],
     'n_trajectories_test': [500],
-    'T': [2, 5, 10],
+    'T': [2, 5],
     'train_sample_rate': [0.01],
     'test_sample_rates': [[0.5e-2, 1e-2, 2e-2]],
-    'batch_size': [64, 32],
+    'batch_size': [32, 16],
     'dyn_sys_name': ['Rossler'],
-    'input_inds': [[0], [2]],
-    'output_inds': [[1,2], [0,1]],
+    'input_inds': [[0]],
+    'output_inds': [[1, 2]],
     # optimizer settings
     'learning_rate': [1e-3],
     'dropout': [1e-4],
@@ -34,10 +34,10 @@ exp_dict = {
     'monitor_metric': ['loss/val/mse'],
     # model settings (modest model size for debugging)
     'include_y0_input': [True, False],
-    'd_model': [128],
+    'd_model': [128, 256],
     'nhead': [8],
-    'num_layers': [6],
-    'dim_feedforward': [128],
+    'num_layers': [6, 12],
+    'dim_feedforward': [128, 256],
     'activation': ['gelu'],
 }
 

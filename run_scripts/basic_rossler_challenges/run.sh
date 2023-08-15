@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=Rosschallenge        # Name of the job
-#SBATCH --array=0-143                   # Number of tasks in the array (e.g., 10 jobs)
+#SBATCH --array=0-127                   # Number of tasks in the array (e.g., 10 jobs)
 #SBATCH --gres=gpu:1                   # Number of GPUs to allocate per job (1 GPU per job)
-#SBATCH --time=01:00:00                # Maximum runtime for each job (hh:mm:ss)
+#SBATCH --time=03:00:00                # Maximum runtime for each job (hh:mm:ss)
 #SBATCH --ntasks=1         # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1          # number of nodes
-#SBATCH --mem-per-cpu=64G           # Memory required per job
+#SBATCH --mem-per-cpu=128GB           # Memory required per job
 
 # Load any required modules (if needed)
 module load cuda/11.8
