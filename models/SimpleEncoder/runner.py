@@ -7,7 +7,7 @@ import wandb
 from pytorch_lightning.tuner import Tuner
 
 # Import custom modules
-from datasets import DynamicsDataModule
+from datasets import MetaDataModule
 from models.SimpleEncoder.SimpleEncoder_lightning import SimpleEncoderModule
 
 class Runner:
@@ -15,8 +15,10 @@ class Runner:
             seed=0,
             deterministic=True, # set to False to get different results each time
             project_name="Rossler_x-Predicts-z",
+            domain_dim=1, # 1 for timeseries, 2 for 2D spatial domains
             input_inds=[0],
             output_inds=[-1],
+            split_frac={}, # used for 2d spatial, but not in timeseries (just a choice vs n_traj)
             n_trajectories_train=10000,
             n_trajectories_val=200,
             n_trajectories_test=200,
@@ -55,6 +57,8 @@ class Runner:
                                                     'val': n_trajectories_val,
                                                     'test': n_trajectories_test,
                                                     },
+                                'split_frac': split_frac,
+                                'domain_dim': domain_dim,
                                  'T': {'train': T,
                                              'val': T,
                                              'test': T,},
@@ -69,6 +73,7 @@ class Runner:
 
         self.model_hyperparams = {'input_dim': len(input_inds),
                                   'output_dim': len(output_inds),
+                                  'domain_dim': domain_dim,
                                   'monitor_metric': monitor_metric,
                                   'lr_scheduler_params': lr_scheduler_params,
                                   'use_transformer': use_transformer,
@@ -114,7 +119,7 @@ class Runner:
         wandb_logger = WandbLogger()
 
         # Load the DataModule
-        datamodule = DynamicsDataModule(**self.data_hyperparams)
+        datamodule = MetaDataModule(**self.data_hyperparams)
 
         # Initialize the model
         model = SimpleEncoderModule(**self.model_hyperparams)

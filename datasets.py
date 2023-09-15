@@ -1,11 +1,21 @@
 import torch
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torchdiffeq import odeint
 import pytorch_lightning as pl
-
+import scipy.io
+from sklearn.model_selection import train_test_split
 from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer
+from utils import subsample_and_flatten
 
 from pdb import set_trace as bp
+
+def MetaDataModule(domain_dim=1, **kwargs):
+    if domain_dim == 1:
+        return DynamicsDataModule(**kwargs)
+    elif domain_dim == 2:
+        return Spatial2dDataModule(**kwargs)
+
 
 def load_dyn_sys_class(dataset_name):
     dataset_classes = {
@@ -14,6 +24,10 @@ def load_dyn_sys_class(dataset_name):
         'Sinusoid': Sinusoid,
         'ControlledODE': ControlledODE,
         # Add more dataset classes here for other systems
+
+        # add filenames to load
+        'darcy_low_res': '../../data/lognormal_N1024_s61.mat',
+        'darcy_high_res': '../../data/lognormal_N6024_s421.mat',
     }
 
     if dataset_name in dataset_classes:
@@ -174,13 +188,16 @@ class DynamicsDataset(Dataset):
         self.x = self.x_normalizer.encode(self.x)
         self.y = self.y_normalizer.encode(self.y)
 
-        self.times = times
+        # currently, times are the same for input and output trajectories
+        # and the same across all examples
+        self.times_x = times
+        self.times_y = times
 
     def __len__(self):
         return self.size
 
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx], self.times
+        return self.x[idx], self.y[idx], self.times_x, self.times_ytimes
 
 class DynamicsDataModule(pl.LightningDataModule):
     def __init__(self,
@@ -243,3 +260,126 @@ class DynamicsDataModule(pl.LightningDataModule):
 
     def test_dataloader(self, sample_rate=None):
         return {dt: DataLoader(self.test[dt], batch_size=self.batch_size) for dt in self.test_sample_rates}
+
+############ Spatial 2D data set ################
+class Spatial2dDataModule(pl.LightningDataModule):
+    def __init__(self,
+                 batch_size=64,
+                 split_frac={'train': 0.6, 'val': 0.2, 'test': 0.2},
+                 train_sample_rate=2, # strides in this case
+                 test_sample_rates=[1,2,4], # strides in this case
+                 dyn_sys_name='darcy_low_res',
+                 **kwargs
+                 ):
+        super().__init__()
+        self.batch_size = batch_size
+        self.train_sample_stride = train_sample_rate
+        self.test_sample_rates = test_sample_rates
+        self.dyn_sys_name = dyn_sys_name
+
+        self.make_splits(split_frac)
+
+    def make_splits(self, split_frac):
+        fname = load_dyn_sys_class(self.dyn_sys_name)
+        data = scipy.io.loadmat(fname)
+        x = data['input']
+        y = data['output']
+
+        x_train_val, x_test, y_train_val, y_test = train_test_split(
+            x, y,
+            test_size=split_frac['test'])
+
+        # split train_val into train, val
+        x_train, x_val, y_train, y_val = train_test_split(
+            x_train_val, y_train_val,
+            train_size=split_frac['train'])
+
+        # define sets
+        self.x_train, self.x_val, self.x_test = x_train, x_val, x_test
+        self.y_train, self.y_val, self.y_test = y_train, y_val, y_test
+
+    def setup(self, stage: str):
+
+        # Assign train/val datasets for use in dataloaders
+        self.train = Spatial2dDataset(self.x_train, self.y_train,
+                            stride=self.train_sample_stride,
+                            )
+
+        self.val = Spatial2dDataset(self.x_val, self.y_val,
+                            stride=self.train_sample_stride,
+                            x_normalizer=self.train.x_normalizer,
+                            y_normalizer=self.train.y_normalizer,
+                            )
+
+        # build a dictionary of test datasets with different sample rates
+        self.test = {}
+        for stride in self.test_sample_rates:
+            self.test[stride] = Spatial2dDataset(self.x_test, self.y_test,
+                                    stride=stride,
+                                    x_normalizer=self.train.x_normalizer,
+                                    y_normalizer=self.train.y_normalizer,
+                                    )
+            # NOTE: there is slight train/test leakage because the normalizer
+            # sees all the high-frequency training data, and this normalization
+            # is used during testing. Technically, we should only store statistics
+            # from the explicitly sampled training set.
+            # So, not really a "train/test" leakage but rather we should admit that
+            # the training technically sees a tiny bit of the high-frequency data
+            # (only in the form of its statistics at each coordinate)
+
+    def train_dataloader(self):
+        return DataLoader(self.train, batch_size=self.batch_size)
+
+    def val_dataloader(self):
+        return DataLoader(self.val, batch_size=self.batch_size)
+
+    def test_dataloader(self, sample_rate=None):
+        return {dt: DataLoader(self.test[dt], batch_size=self.batch_size) for dt in self.test_sample_rates}
+
+
+class Spatial2dDataset(Dataset):
+    def __init__(self, x, y,
+                stride=2,
+                x_normalizer=None,
+                y_normalizer=None,
+                **kwargs):
+        '''x: (N, length, width)
+           y: (N, length, width)
+        '''
+        self.generate_data(x, y, x_normalizer, y_normalizer, stride)
+
+    def generate_data(self, x, y, x_normalizer, y_normalizer, stride):
+        '''x: (N, length, width)
+           y: (N, length, width)'''
+
+        # subsample x, y to take all elements on the boundary, and elements in the interior according to stride
+        # flattens x, y to be (N, length*width, 1)
+        self.active_coordinates_x, x = subsample_and_flatten(x, stride)
+        self.active_coordinates_y, y = subsample_and_flatten(y, stride)
+
+        # add extra dimension to x, y so that
+        # x: (N, length*width, 1)
+        # y: (N, length*width, 1)
+        x = x[..., None]
+        y = y[..., None]
+
+        # compute normalization
+        if x_normalizer is None or y_normalizer is None:
+            #normalize data
+            self.x_normalizer = UnitGaussianNormalizer(
+                x.reshape(-1, x.shape[-1]))
+            self.y_normalizer = UnitGaussianNormalizer(
+                y.reshape(-1, y.shape[-1]))
+        else:
+            self.x_normalizer = x_normalizer
+            self.y_normalizer = y_normalizer
+
+        # apply normalization
+        self.x = self.x_normalizer.encode(x)
+        self.y = self.y_normalizer.encode(y)
+
+    def __len__(self):
+        return self.x.shape[0]
+
+    def __getitem__(self, idx):
+        return self.x[idx], self.y[idx], self.active_coordinates_x, self.active_coordinates_y

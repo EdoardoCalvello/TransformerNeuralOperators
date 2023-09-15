@@ -12,7 +12,7 @@ from models.pytorch_transformer_custom import TransformerEncoderLayer
 
 # Define the neural network model
 class SimpleEncoder(torch.nn.Module):
-    def __init__(self, input_dim=1, output_dim=1, d_model=32, nhead=8, num_layers=6,
+    def __init__(self, input_dim=1, output_dim=1, domain_dim=1, d_model=32, nhead=8, num_layers=6,
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
                  use_transformer=True,
@@ -23,6 +23,7 @@ class SimpleEncoder(torch.nn.Module):
         super(SimpleEncoder, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.domain_dim = domain_dim
         self.d_model = d_model
         self.learning_rate = learning_rate
         self.max_sequence_length = max_sequence_length
@@ -59,36 +60,39 @@ class SimpleEncoder(torch.nn.Module):
         pe = pe.unsqueeze(0)  # Add a batch dimension
         self.register_buffer('pe_discrete', pe)
 
-        # for continuous time positional encoding
+        # for continuous time positional encoding (assumes square spatial domain)
         even_inds = torch.arange(0, self.d_model, 2).unsqueeze(0)
         odd_inds = torch.arange(1, self.d_model, 2).unsqueeze(0)
         self.register_buffer('even_inds', even_inds)
         self.register_buffer('odd_inds', odd_inds)
 
-    def pe_continuous(self, times):
-        '''apply a positional encoding to sequence x evaluated at times t'''
+    def pe_continuous(self, coords):
+        '''generate the positional encoding for coords'''
         # .to() sends the tensor to the device of the argument
-        pe = torch.zeros(times.shape[0], self.d_model).to(times)
-        pe[:, 0::2] = torch.sin(100 * times * 10**(-4 * self.even_inds / self.d_model))
-        pe[:, 1::2] = torch.cos(100 * times * 10**(-4 * self.odd_inds / self.d_model))
+        pe = torch.zeros(coords.shape[0], self.d_model).to(coords)
+        pe[:, 0::2] = torch.sin(100 * coords[:,0] * 10**(-4 * self.even_inds / self.d_model))
+        pe[:, 1::2] = torch.cos(100 * coords[:,0] * 10**(-4 * self.odd_inds / self.d_model))
+        for i in range(1, self.domain_dim):
+            pe[:, 0::2] = pe[:, 0::2] * torch.sin(100 * coords[:,i] * 10**(-4 * self.even_inds / self.d_model))
+            pe[:, 1::2] = pe[:, 1::2] * torch.cos(100 * coords[:,i] * 10**(-4 * self.odd_inds / self.d_model))
         return pe
 
-    def positional_encoding(self, x, times):
+    def positional_encoding(self, x, coords):
         # x: (batch_size, seq_len, input_dim)
         # pe: (1, seq_len, d_model)
         # x + pe[:, :x.size(1)]  # (batch_size, seq_len, d_model)
         if self.use_positional_encoding=='discrete':
             pe = self.pe_discrete[:, :x.size(1)]
         elif self.use_positional_encoding=='continuous':
-            pe = self.pe_continuous(times)
+            pe = self.pe_continuous(coords)
         else: # no positional encoding
             # .to() sends the tensor to the device of the argument
             pe = torch.tensor(0).to(x)
 
         return pe
 
-    def apply_positional_encoding(self, x, times):
-        pe = self.positional_encoding(x, times)
+    def apply_positional_encoding(self, x, coords):
+        pe = self.positional_encoding(x, coords)
         if self.include_y0_input:
             x[:, self.output_dim:, :] += pe
             #'include_y0_input': ['uniform', 'staggered', False],
@@ -102,7 +106,7 @@ class SimpleEncoder(torch.nn.Module):
             x += pe
         return x
 
-    def forward(self, x, y=None, times=None):
+    def forward(self, x, y=None, coords_x=None, coords_y=None):
         if self.include_y0_input:
             #this only works when the input dimension is 1, indeed how would you concatenate initial condition with the input otherwise?
             # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
@@ -115,7 +119,7 @@ class SimpleEncoder(torch.nn.Module):
 
         # times = torch.linspace(0, 1, x.shape[1]).unsqueeze(1)
         # can use first time because currently all batches share the same time discretization
-        x = self.apply_positional_encoding(x, times)
+        x = self.apply_positional_encoding(x, coords_x) # coords_x is "time" for 1D case
 
         if self.use_transformer:
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)
