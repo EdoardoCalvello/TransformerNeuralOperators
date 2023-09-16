@@ -22,7 +22,7 @@ exp_dict = {
     'train_sample_rate': [2],
     'test_sample_rates': [[1,2,4]],
     'batch_size': [4, 16, 64],
-    'dyn_sys_name': ['darcy_low_res', 'darcy_high_res'],
+    'dyn_sys_name': ['darcy_low_res'],
     # optimizer settings
     'learning_rate': [1e-3],
     'dropout': [1e-4],
