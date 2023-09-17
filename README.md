@@ -15,6 +15,7 @@ $ conda install matplotlib
 $ conda install -c conda-forge pytorch-lightning 
 $ conda install -c conda-forge wandb 
 $ conda install -c conda-forge torchdiffeq
+$ conda install -c conda-forge scikit-learn
 ```
 
 # Then I exported this conda environment for reproducibility:
