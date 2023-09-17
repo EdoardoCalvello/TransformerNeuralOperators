@@ -241,7 +241,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         for col, idx_val in enumerate(idx):
             x_input_i = griddata(
-                (coords_x[idx_val, :, 0], coords_x[idx_val, :, 1]), x[idx_val], (x1i, x2i), method='linear')
+                (coords_x[idx_val, :, 0], coords_x[idx_val, :, 1]), x[idx_val].detach().cpu().numpy(), (x1i, x2i), method='linear')
             y_true_i = griddata(
                 (coords_y[idx_val, :, 0], coords_y[idx_val, :, 1]), y_true[idx_val], (y1i, y2i), method='linear')
             y_pred_i = griddata((coords_y[idx_val, :, 0], coords_y[idx_val, :, 1]), y_pred[idx_val], (y1i, y2i), method='linear')
