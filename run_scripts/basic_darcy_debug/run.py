@@ -21,7 +21,8 @@ exp_dict = {
     'domain_dim': [2], # 1 for timeseries, 2 for 2D spatial
     'train_sample_rate': [2],
     'test_sample_rates': [[1,2,4]],
-    'batch_size': [4, 16, 64],
+    'pos_enc_coeff': [0, 1, 2, 3],
+    'batch_size': [4],
     'dyn_sys_name': ['darcy_low_res'],
     # optimizer settings
     'learning_rate': [1e-3],

@@ -29,6 +29,7 @@ class Runner:
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             use_transformer=True,
             use_positional_encoding=True,
+            pos_enc_coeff=2, # coefficient for positional encoding
             do_layer_norm=True,
             d_model=128,
             nhead=8,
@@ -68,6 +69,7 @@ class Runner:
                                   'lr_scheduler_params': lr_scheduler_params,
                                   'use_transformer': use_transformer,
                                   'use_positional_encoding': use_positional_encoding,
+                                  'pos_enc_coeff': pos_enc_coeff,
                                   'do_layer_norm': do_layer_norm,
                                   'd_model': d_model,
                                   'nhead': nhead,

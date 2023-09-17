@@ -17,6 +17,7 @@ class SimpleEncoder(torch.nn.Module):
                  do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding='continuous',
+                 pos_enc_coeff=2,
                  include_y0_input=False,
                  activation='relu',
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
@@ -29,6 +30,7 @@ class SimpleEncoder(torch.nn.Module):
         self.max_sequence_length = max_sequence_length
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
+        self.pos_enc_coeff = pos_enc_coeff # coefficient for positional encoding
         self.include_y0_input = include_y0_input # whether to use y as input to the encoder
 
         self.set_positional_encoding()
@@ -70,11 +72,11 @@ class SimpleEncoder(torch.nn.Module):
         '''generate the positional encoding for coords'''
         # .to() sends the tensor to the device of the argument
         pe = torch.zeros(coords.shape[0], self.d_model).to(coords)
-        pe[:, 0::2] = torch.sin(100 * coords[:,0] * 10**(-4 * self.even_inds / self.d_model))
-        pe[:, 1::2] = torch.cos(100 * coords[:,0] * 10**(-4 * self.odd_inds / self.d_model))
+        pe[:, 0::2] = torch.sin(10**self.pos_enc_coeff * coords[:,0] * 10**(-4 * self.even_inds / self.d_model))
+        pe[:, 1::2] = torch.cos(10**self.pos_enc_coeff * coords[:,0] * 10**(-4 * self.odd_inds / self.d_model))
         for i in range(1, self.domain_dim):
-            pe[:, 0::2] = pe[:, 0::2] * torch.sin(100 * coords[:,i] * 10**(-4 * self.even_inds / self.d_model))
-            pe[:, 1::2] = pe[:, 1::2] * torch.cos(100 * coords[:,i] * 10**(-4 * self.odd_inds / self.d_model))
+            pe[:, 0::2] = pe[:, 0::2] * torch.sin(10**self.pos_enc_coeff * coords[:,i] * 10**(-4 * self.even_inds / self.d_model))
+            pe[:, 1::2] = pe[:, 1::2] * torch.cos(10**self.pos_enc_coeff * coords[:,i] * 10**(-4 * self.odd_inds / self.d_model))
         return pe
 
     def positional_encoding(self, x, coords):
