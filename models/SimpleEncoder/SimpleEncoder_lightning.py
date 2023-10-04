@@ -21,6 +21,7 @@ class SimpleEncoderModule(pl.LightningModule):
                  do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding='continuous',
+                 append_position_to_x=False,
                  pos_enc_coeff=2,
                  include_y0_input=False,
                  activation='relu',
@@ -35,6 +36,7 @@ class SimpleEncoderModule(pl.LightningModule):
         self.max_sequence_length = max_sequence_length
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
+        self.append_position_to_x = append_position_to_x
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
         self.domain_dim = domain_dim
@@ -55,6 +57,7 @@ class SimpleEncoderModule(pl.LightningModule):
                                     do_layer_norm=do_layer_norm,
                                     use_transformer=use_transformer,
                                     use_positional_encoding=use_positional_encoding,
+                                    append_position_to_x=append_position_to_x,
                                     pos_enc_coeff=pos_enc_coeff,
                                     include_y0_input=include_y0_input,
                                     activation=activation,

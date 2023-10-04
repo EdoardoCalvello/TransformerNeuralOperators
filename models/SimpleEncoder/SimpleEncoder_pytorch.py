@@ -17,6 +17,7 @@ class SimpleEncoder(torch.nn.Module):
                  do_layer_norm=True,
                  use_transformer=True,
                  use_positional_encoding='continuous',
+                 append_position_to_x=False,
                  pos_enc_coeff=2,
                  include_y0_input=False,
                  activation='relu',
@@ -30,6 +31,7 @@ class SimpleEncoder(torch.nn.Module):
         self.max_sequence_length = max_sequence_length
         self.use_transformer = use_transformer
         self.use_positional_encoding = use_positional_encoding
+        self.append_position_to_x = append_position_to_x
         self.pos_enc_coeff = pos_enc_coeff # coefficient for positional encoding
         self.include_y0_input = include_y0_input # whether to use y as input to the encoder
 
@@ -49,6 +51,8 @@ class SimpleEncoder(torch.nn.Module):
         # where S is the source sequence length, N is the batch size, E is the feature number, T is the target sequence length,
 
         self.linear_in = nn.Linear(input_dim, d_model)
+        #linear layer to transform the input to the right dimension if positions are appended to input
+        self.linear_in_position = nn.Linear(input_dim + domain_dim, d_model)
         self.linear_out = nn.Linear(d_model, output_dim)
 
     def set_positional_encoding(self):
@@ -89,7 +93,7 @@ class SimpleEncoder(torch.nn.Module):
             pe = self.pe_continuous(coords)
         else: # no positional encoding
             # .to() sends the tensor to the device of the argument
-            pe = torch.tensor(0).to(x)
+            pe = torch.zeros(x.shape).to(x)
 
         return pe
 
@@ -117,7 +121,12 @@ class SimpleEncoder(torch.nn.Module):
             # (batch_size, seq_len+output_dim, dim_state)
             x = torch.cat((initial_cond, x), dim=1)
 
-        x = self.linear_in(x)  # (batch_size, seq_len, input_dim)
+        if self.append_position_to_x:
+            append = coords_x.permute(2,0,1).repeat(x.shape[0],1,1)
+            x = torch.cat((x, append), dim=2)
+            x = self.linear_in_position(x)  # (batch_size, seq_len, input_dim+domain_dim)
+        else:
+            x = self.linear_in(x)  # (batch_size, seq_len, input_dim)
 
         # times = torch.linspace(0, 1, x.shape[1]).unsqueeze(1)
         # can use first time because currently all batches share the same time discretization

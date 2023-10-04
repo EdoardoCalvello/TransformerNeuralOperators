@@ -21,7 +21,7 @@ exp_dict = {
     'domain_dim': [2], # 1 for timeseries, 2 for 2D spatial
     'train_sample_rate': [2],
     'test_sample_rates': [[1,2,4]],
-    'pos_enc_coeff': [0, 1, 2, 3],
+    'pos_enc_coeff': [1],#[0, 1, 2, 3],
     'batch_size': [4],
     'dyn_sys_name': ['darcy_low_res'],
     # optimizer settings
@@ -39,6 +39,8 @@ exp_dict = {
     'num_layers': [6],
     'dim_feedforward': [128],
     'activation': ['gelu'],
+    'use_positional_encoding': [False], #['continuous', 'discrete', False],
+    'append_position_to_x': [True], #[True, False],
 }
 
 exp_list = dict_combiner(exp_dict)

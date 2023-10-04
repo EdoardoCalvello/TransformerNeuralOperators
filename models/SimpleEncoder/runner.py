@@ -33,6 +33,7 @@ class Runner:
             tune_initial_lr=False,
             use_transformer=True,
             use_positional_encoding='continuous',
+            append_position_to_x=False,
             pos_enc_coeff=2, # coefficient for positional encoding
             include_y0_input=False,
             do_layer_norm=True,
@@ -79,6 +80,7 @@ class Runner:
                                   'lr_scheduler_params': lr_scheduler_params,
                                   'use_transformer': use_transformer,
                                   'use_positional_encoding': use_positional_encoding,
+                                  'append_position_to_x': append_position_to_x,
                                   'pos_enc_coeff': pos_enc_coeff,
                                   'include_y0_input': include_y0_input,
                                   'do_layer_norm': do_layer_norm,
