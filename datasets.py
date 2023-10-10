@@ -190,14 +190,14 @@ class DynamicsDataset(Dataset):
 
         # currently, times are the same for input and output trajectories
         # and the same across all examples
-        self.times_x = times
-        self.times_y = times
+        self.times_x = times.unsqueeze(-1)
+        self.times_y = times.unsqueeze(-1)
 
     def __len__(self):
         return self.size
 
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx], self.times_x, self.times_ytimes
+        return self.x[idx], self.y[idx], self.times_x, self.times_y
 
 class DynamicsDataModule(pl.LightningDataModule):
     def __init__(self,
