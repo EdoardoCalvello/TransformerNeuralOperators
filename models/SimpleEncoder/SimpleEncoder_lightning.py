@@ -250,9 +250,11 @@ class SimpleEncoderModule(pl.LightningModule):
             y_true_i = griddata(
                 (coords_y[idx_val, :, 0], coords_y[idx_val, :, 1]), y_true[idx_val], (y1i, y2i), method='linear')
             y_pred_i = griddata((coords_y[idx_val, :, 0], coords_y[idx_val, :, 1]), y_pred[idx_val], (y1i, y2i), method='linear')
-            #y_true_i_norm = np.sqrt((1/(y_pred_i.shape[0]*y_pred_i.shape[1]))*np.sum(y_pred_i**2))
-            y_rel_diff_i = np.abs(y_pred_i - y_true_i) / np.abs(y_true_i + 1e-5)
+            #y_true_i_norm = np.sqrt((1/(y_true_i.shape[0]*y_true_i.shape[1]))*np.sum(y_true_i**2))
+            y_rel_diff_i = np.abs(y_pred_i - y_true_i) #/ np.abs(y_true_i + 1e-5)
             #y_rel_diff_i = np.abs(y_pred_i - y_true_i)
+
+            #plot median and worst case relative error
 
             for i, ax in enumerate(axs[:, col]):
                 if i == 0:
