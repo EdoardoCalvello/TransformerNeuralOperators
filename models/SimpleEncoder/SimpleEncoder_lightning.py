@@ -274,9 +274,9 @@ class SimpleEncoderModule(pl.LightningModule):
                 elif i == 3:
                     # plot absolute relative error in log scale (difference divided by ground truth)
                     #im = ax.imshow(np.log10(y_rel_diff_i + 1e-10), cmap='viridis', vmin=-5, vmax=3)
-                    im = ax.imshow(y_rel_diff_i, cmap='viridis')
+                    im = ax.imshow(np.log10(y_rel_diff_i), cmap='inferno', vmin=-9,vmax=-1)
                     ax.set_title(
-                        f'Absolute Relative Error (Index {idx_val})')
+                        f'Pointwise Error (Index {idx_val})')
                 fig.colorbar(im, ax=ax)
 
         fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth')
