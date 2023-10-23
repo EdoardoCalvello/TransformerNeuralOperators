@@ -18,6 +18,7 @@ exp_dict = {
     'project_name': [args.project_name],
     # data settings
     'split_frac': [{'train': 0.6, 'val': 0.2, 'test': 0.2}],
+    'random_state': [0],
     'domain_dim': [2], # 1 for timeseries, 2 for 2D spatial
     'train_sample_rate': [2],
     'test_sample_rates': [[1,2,4]],

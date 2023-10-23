@@ -18,7 +18,8 @@ class Runner:
             domain_dim=1, # 1 for timeseries, 2 for 2D spatial domains
             input_inds=[0],
             output_inds=[-1],
-            split_frac={}, # used for 2d spatial, but not in timeseries (just a choice vs n_traj)
+            split_frac={}, # used for 2d spatial, but not in timeseries (just a choice vs n_traj),
+            random_state=None, # used for 2d spatial, added for reproducibility of test error plots
             n_trajectories_train=10000,
             n_trajectories_val=200,
             n_trajectories_test=200,
@@ -60,6 +61,7 @@ class Runner:
                                                     'test': n_trajectories_test,
                                                     },
                                 'split_frac': split_frac,
+                                'random_state': random_state,
                                 'domain_dim': domain_dim,
                                  'T': {'train': T,
                                              'val': T,

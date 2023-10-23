@@ -269,6 +269,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
                  train_sample_rate=2, # strides in this case
                  test_sample_rates=[1,2,4], # strides in this case
                  dyn_sys_name='darcy_low_res',
+                 random_state=0,
                  **kwargs
                  ):
         super().__init__()
@@ -276,6 +277,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
         self.train_sample_stride = train_sample_rate
         self.test_sample_rates = test_sample_rates
         self.dyn_sys_name = dyn_sys_name
+        self.random_state = random_state
 
         self.make_splits(split_frac)
 
@@ -287,12 +289,12 @@ class Spatial2dDataModule(pl.LightningDataModule):
 
         x_train_val, x_test, y_train_val, y_test = train_test_split(
             x, y,
-            test_size=split_frac['test'])
+            test_size=split_frac['test'],random_state=self.random_state)
 
         # split train_val into train, val
         x_train, x_val, y_train, y_val = train_test_split(
             x_train_val, y_train_val,
-            train_size=split_frac['train'])
+            train_size=split_frac['train'], random_state=self.random_state)
 
         # define sets
         self.x_train, self.x_val, self.x_test = x_train, x_val, x_test
