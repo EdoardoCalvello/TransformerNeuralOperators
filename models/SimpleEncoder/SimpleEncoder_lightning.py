@@ -24,6 +24,7 @@ class SimpleEncoderModule(pl.LightningModule):
                  append_position_to_x=False,
                  pos_enc_coeff=2,
                  include_y0_input=False,
+                 loss = 'relative_L2',
                  activation='relu',
                  monitor_metric='train_loss',
                  lr_scheduler_params={'patience': 3,
@@ -40,6 +41,7 @@ class SimpleEncoderModule(pl.LightningModule):
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
         self.domain_dim = domain_dim
+        self.loss = loss
 
         # whether to use y as input to the encoder
         self.use_y_forward = include_y0_input
@@ -88,11 +90,21 @@ class SimpleEncoderModule(pl.LightningModule):
         loss_sup  = torch.max(torch.abs(y_hat - y))
         self.log("loss/train/sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
+        
+        #Relative L2 loss
+        rel_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1)),
+                                        torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))))
+        self.log("loss/train/rel_L2", rel_loss, on_step=False,
+                 on_epoch=True, prog_bar=True)
+
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Train')
 
-        return loss
+        if self.return_loss == 'relative_L2':
+            return rel_loss
+        else:
+            return loss
 
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
@@ -131,10 +143,20 @@ class SimpleEncoderModule(pl.LightningModule):
         loss_sup  = torch.max(torch.abs(y_hat - y))
         self.log("loss/val/sup", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
+        
+        #Relative L2 loss
+
+        rel_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1)),
+                                        torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))))
+        self.log("loss/val/rel_L2", rel_loss, on_step=False,
+                 on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Val')
-        return loss
+        if self.return_loss == 'relative_L2':
+            return rel_loss
+        else:
+            return loss
 
     def plot_positional_encoding(self, x, coords):
         pe = self.model.positional_encoding(x, coords)
@@ -299,11 +321,22 @@ class SimpleEncoderModule(pl.LightningModule):
         loss_sup  = torch.max(torch.abs(y_hat - y))
         self.log(f"loss/test/sup/dt{dt}", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
+        
+        #Relative L2 loss
+
+        rel_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1)),
+                                        torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))))
+        self.log(f"loss/test/rel_L2/dt{dt}", rel_loss, on_step=False,
+                 on_epoch=True, prog_bar=True)
 
         # log plots
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag=f'Test/dt{dt}')
-        return loss
+
+        if self.return_loss == 'relative_L2':
+            return rel_loss
+        else:
+            return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
