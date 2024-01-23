@@ -47,7 +47,8 @@ class DynSys(object):
 
     def solve(self, N_traj, T, dt):
         '''ode solver for the dynamical system'''
-        times = torch.arange(0, T, dt)
+        #times = torch.arange(0, T, dt)
+        times = torch.sort(T*torch.rand(int(T/dt)), dim=0)[0]
         xyz0 = self.get_inits(N_traj)
         xyz = odeint(self.rhs, xyz0, times)
         # Size, Seq_len, batch_size, input_dim
