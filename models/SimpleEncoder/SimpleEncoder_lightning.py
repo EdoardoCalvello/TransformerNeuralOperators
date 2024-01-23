@@ -223,12 +223,15 @@ class SimpleEncoderModule(pl.LightningModule):
                                     :, id].squeeze(),
                                 linewidth=3, alpha=0.8, label='Layer {}'.format(0),
                                 color=plt.cm.viridis(0))
+            #need to add batch dimension to x_layer_output for custom implementation of transformer
+            x_layer_output = x_layer_output.unsqueeze(0)
             for i, layer in enumerate(self.model.encoder.layers):
-                x_layer_output = layer(x_layer_output)
+                #need to make sure coords_x has dimension (seq_ln,1,1)
+                x_layer_output = layer(x_layer_output,torch.tensor(coords_x[idx_val]).unsqueeze(1))
                 # Plot the output of this layer
                 for j, id in enumerate(idx_dim):
-                    axs[j, col].plot(coords_x[idx_val],
-                                    x_layer_output.detach().cpu().numpy()[
+                    axs[j, col].plot(coords_x[idx_val].squeeze(),
+                                    x_layer_output.detach().cpu().numpy()[0,
                                         :, id].squeeze(),
                                     linewidth=3, alpha=0.8, label=f'Layer {i+1}',
                                     color=plt.cm.viridis((i+1) / (len(self.model.encoder.layers))))
