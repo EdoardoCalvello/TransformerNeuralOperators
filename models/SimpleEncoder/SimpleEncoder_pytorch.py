@@ -7,8 +7,8 @@ import torch.nn as nn
 # from torch.nn import TransformerEncoderLayer
 
 # source code
-from models.pytorch_transformer_custom import TransformerEncoder 
-from models.pytorch_transformer_custom import TransformerEncoderLayer
+from models.transformer_custom import TransformerEncoder 
+from models.transformer_custom import TransformerEncoderLayer
 
 # Define the neural network model
 class SimpleEncoder(torch.nn.Module):

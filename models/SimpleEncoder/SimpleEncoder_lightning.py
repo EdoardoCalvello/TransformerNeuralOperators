@@ -24,12 +24,14 @@ class SimpleEncoderModule(pl.LightningModule):
                  append_position_to_x=False,
                  pos_enc_coeff=2,
                  include_y0_input=False,
-                 loss = 'relative_L2',
+                 loss_name = 'l2_rel', # 'l2_rel' or 'l2'
                  activation='relu',
                  monitor_metric='train_loss',
                  lr_scheduler_params={'patience': 3,
                                       'factor': 0.5},
-                 dropout=0.1, norm_first=False, dim_feedforward=2048):
+                 dropout=0.1,
+                 norm_first=False,
+                 dim_feedforward=2048):
         super(SimpleEncoderModule, self).__init__()
         self.first_forward = True # for plotting model-related things once at beginnning of training
         self.d_model = d_model
@@ -41,7 +43,7 @@ class SimpleEncoderModule(pl.LightningModule):
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
         self.domain_dim = domain_dim
-        self.loss = loss
+        self.loss_name = loss_name
 
         # whether to use y as input to the encoder
         self.use_y_forward = include_y0_input
@@ -101,10 +103,8 @@ class SimpleEncoderModule(pl.LightningModule):
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Train')
 
-        if self.return_loss == 'relative_L2':
-            return rel_loss
-        else:
-            return loss
+        loss_dict = {"l2": loss, "l2_rel": rel_loss}
+        return loss_dict[self.loss_name]
 
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
@@ -153,10 +153,9 @@ class SimpleEncoderModule(pl.LightningModule):
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Val')
-        if self.return_loss == 'relative_L2':
-            return rel_loss
-        else:
-            return loss
+
+        loss_dict = {"l2": loss, "l2_rel": rel_loss}
+        return loss_dict[self.loss_name]
 
     def plot_positional_encoding(self, x, coords):
         pe = self.model.positional_encoding(x, coords)
@@ -331,12 +330,10 @@ class SimpleEncoderModule(pl.LightningModule):
 
         # log plots
         if batch_idx == 0:
-            self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag=f'Test/dt{dt}')
+            self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag=f"Test/dt{dt}")
 
-        if self.return_loss == 'relative_L2':
-            return rel_loss
-        else:
-            return loss
+        loss_dict = {"l2": loss, "l2_rel": rel_loss}
+        return loss_dict[self.loss_name]
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
