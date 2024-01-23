@@ -133,7 +133,7 @@ class SimpleEncoder(torch.nn.Module):
         x = self.apply_positional_encoding(x, coords_x) # coords_x is "time" for 1D case
 
         if self.use_transformer:
-            x = self.encoder(x)  # (batch_size, seq_len, dim_state)
+            x = self.encoder(x, coords_x)  # (batch_size, seq_len, dim_state)
 
         x = self.linear_out(x)  # (seq_len, batch_size, output_dim)
 
