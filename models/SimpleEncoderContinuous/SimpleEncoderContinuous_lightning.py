@@ -457,6 +457,93 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log(
                 {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
         plt.close()
+
+
+    def test_figs_2D(self, median_sample, worst_sample, tag):
+
+
+        x_median, y_median, coords_x_median, coords_y_median,y_pred_median, median_error = median_sample
+        x_min, y_min, coords_x_min, coords_y_min, y_pred_min, min_error = worst_sample
+
+        #make all the previous into numpy arrays
+        x_median, y_median, coords_x_median, coords_y_median, y_pred_median, median_error = x_median.cpu().numpy(), y_median.cpu().numpy(), coords_x_median.cpu().numpy(), coords_y_median.cpu().numpy(), y_pred_median.cpu().numpy(), median_error[0]
+        x_min, y_min, coords_x_min, coords_y_min , y_pred_min, min_error = x_min.cpu().numpy(), y_min.cpu().numpy(), coords_x_min.cpu().numpy(), coords_y_min.cpu().numpy() , y_pred_min.cpu().numpy(), min_error[0]
+
+        # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
+        # plot the values of y_true and y_pred at the indices given by coords_y
+        n_grid=100
+
+        # get the low and high indices of the y coordinates
+        i_low_1, i_low_2 = np.min(coords_y_min[...,0]), np.min(coords_y_min[...,1])
+        i_high_1, i_high_2 = np.max(coords_y_min[...,0]), np.max(coords_y_min[...,1])
+        # build a meshgrid of coordinates based on coords_y
+        y1i_min, y2i_min = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2, i_high_2, n_grid))
+
+        # get the low and high indices of the x coordinates
+        i_low_1, i_low_2 = np.min(coords_x_min[...,0]), np.min(coords_x_min[...,1])
+        i_high_1, i_high_2 = np.max(coords_x_min[...,0]), np.max(coords_x_min[...,1])
+        # build a meshgrid of coordinates based on coords_y
+        x1i_min, x2i_min = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2, i_high_2, n_grid))
+
+        # get the low and high indices of the y coordinates
+        i_low_1_median, i_low_2_median = np.min(coords_y_median[...,0]), np.min(coords_y_median[...,1])
+        i_high_1_median, i_high_2_median = np.max(coords_y_median[...,0]), np.max(coords_y_median[...,1])
+        # build a meshgrid of coordinates based on coords_y
+        y1i_median, y2i_median = np.meshgrid(np.linspace(i_low_1_median, i_high_1_median, n_grid), np.linspace(i_low_2_median, i_high_2_median, n_grid))
+
+        # get the low and high indices of the x coordinates
+        i_low_1_median, i_low_2_median = np.min(coords_x_median[...,0]), np.min(coords_x_median[...,1])
+        i_high_1_median, i_high_2_median = np.max(coords_x_median[...,0]), np.max(coords_x_median[...,1])
+        # build a meshgrid of coordinates based on coords_y
+        x1i_median, x2i_median = np.meshgrid(np.linspace(i_low_1_median, i_high_1_median, n_grid), np.linspace(i_low_2_median, i_high_2_median, n_grid))
+
+        plt.figure()
+        fig, axs = plt.subplots(
+            nrows=4, ncols=2, figsize=(16, 24), sharex=True, squeeze=False)
+
+        x_input_min = griddata(
+                (coords_x_min[:, 0], coords_x_min[:, 1]), x_min, (x1i_min, x2i_min), method='linear')
+        y_true_min = griddata(
+                (coords_y_min[ :, 0], coords_y_min[ :, 1]), y_min, (y1i_min, y2i_min), method='linear')
+        y_pred_min = griddata((coords_y_min[ :, 0], coords_y_min[ :, 1]), y_pred_min[0,:,:], (y1i_min, y2i_min), method='linear')
+        y_rel_diff_min = np.abs(y_pred_min - y_true_min)
+
+        x_input_median = griddata(
+                (coords_x_median[:, 0], coords_x_median[:, 1]), x_median, (x1i_median, x2i_median), method='linear')
+        y_true_median = griddata(
+                (coords_y_median[:, 0], coords_y_median[:, 1]), y_median, (y1i_median, y2i_median), method='linear')
+        y_pred_median = griddata((coords_y_median[ :, 0], coords_y_median[ :, 1]), y_pred_median[0,:,:], (y1i_median, y2i_median), method='linear')
+        y_rel_diff_median = np.abs(y_pred_median - y_true_median)
+
+        data_sets = {
+            (0, 1): x_input_min,
+            (1, 1): y_true_min,
+            (2, 1): y_pred_min,
+            (3, 1): np.log10(y_rel_diff_min),
+            (0, 0): x_input_median,
+            (1, 0): y_true_median,
+            (2, 0): y_pred_median,
+            (3, 0): np.log10(y_rel_diff_median)
+        }
+
+        for (i, j), data in data_sets.items():
+            bounds = (-7, 1) if i == 3 else (None, None)
+            im = axs[i, j].imshow(data, cmap='viridis' if i < 3 else 'inferno', vmin=bounds[0], vmax=bounds[1])
+            axs[i, j].set_title(
+                f"{'Input Field' if i == 0 else 'Ground Truth' if i == 1 else 'Prediction' if i == 2 else 'Pointwise Error'} "
+                f"{'(Median)' if j == 0 else '(Worst)'}", fontsize=18
+            )
+
+            cbar = plt.colorbar(im, ax=axs[i, j])
+
+        fig.text(0.25, 0.02, f'Relative L2 Error: {median_error:.2e} ', ha='center', va='bottom', fontsize=18)
+        fig.text(0.75, 0.02, f'Relative L2 Error: {min_error:.2e}', ha='center', va='bottom', fontsize=18)
+
+        fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth', fontsize=20)
+        plt.subplots_adjust(hspace=0.5,wspace=0)
+        wandb.log(
+                {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
+        plt.close()
     
     def on_test_epoch_end(self):
 
