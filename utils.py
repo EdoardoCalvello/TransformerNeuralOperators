@@ -2,7 +2,25 @@ import numpy as np
 import itertools
 from datetime import datetime
 
+import itertools
+
 def dict_combiner(mydict):
+    """
+    Combines the values of a dictionary into a list of dictionaries,
+    where each dictionary represents a combination of the values.
+
+    Args:
+        mydict (dict): The input dictionary containing keys and lists of values.
+
+    Returns:
+        list: A list of dictionaries, where each dictionary represents a combination
+              of the values from the input dictionary.
+
+    Example:
+        >>> mydict = {'A': [1, 2], 'B': [3, 4]}
+        >>> dict_combiner(mydict)
+        [{'A': 1, 'B': 3}, {'A': 1, 'B': 4}, {'A': 2, 'B': 3}, {'A': 2, 'B': 4}]
+    """
     if mydict:
         keys, values = zip(*mydict.items())
         experiment_list = [dict(zip(keys, v))
@@ -11,43 +29,126 @@ def dict_combiner(mydict):
         experiment_list = [{}]
     return experiment_list
 
-class MaxMinNormalizer(object):  
-    def __init__(self, x, eps=1e-5):  
-        super(MaxMinNormalizer, self).__init__()  
-  
-        self.max = np.max(x, 0)  
-        self.min = np.min(x, 0) 
+class MaxMinNormalizer(object):
+    """
+    A class for performing max-min normalization on a given input array.
+
+    Parameters:
+    - x: Input array to be normalized.
+    - eps: Small value added to the denominator to avoid division by zero.
+
+    Methods:
+    - encode(x): Normalize the input array using max-min normalization.
+    - decode(x): Denormalize the input array using max-min normalization.
+    """
+
+    def __init__(self, x, eps=1e-5):
+        super(MaxMinNormalizer, self).__init__()
+
+        self.max = np.max(x, 0)
+        self.min = np.min(x, 0)
         self.range = self.max - self.min
-        self.eps = eps  
-  
-    def encode(self, x):  
-        return (x - self.min) / (self.range + self.eps)  
-  
-    def decode(self, x):  
+        self.eps = eps
+
+    def encode(self, x):
+        """
+        Normalize the input array using max-min normalization.
+
+        Parameters:
+        - x: Input array to be normalized.
+
+        Returns:
+        - Normalized array.
+        """
+        return (x - self.min) / (self.range + self.eps)
+
+    def decode(self, x):
+        """
+        Denormalize the input array using max-min normalization.
+
+        Parameters:
+        - x: Input array to be denormalized.
+
+        Returns:
+        - Denormalized array.
+        """
         return self.min + x * (self.range + self.eps)
 
-class UnitGaussianNormalizer(object):  
-    def __init__(self, x, eps=1e-5):  
-        super(UnitGaussianNormalizer, self).__init__()  
-  
-        self.mean = np.mean(x, 0)  
-        self.std = np.std(x, 0) 
-        self.eps = eps  
-  
-    def encode(self, x):  
-        return (x - self.mean) / (self.std + self.eps)  
-  
-    def decode(self, x):  
-        return (x * (self.std + self.eps)) + self.mean  
+class UnitGaussianNormalizer(object):
+    """
+    A class for normalizing data using unit Gaussian normalization.
 
-class InactiveNormalizer(object):  
-    def __init__(self, x, eps=1e-5):  
-        super(InactiveNormalizer, self).__init__()  
-    
-    def encode(self, x):  
-        return x 
-  
-    def decode(self, x):  
+    Attributes:
+        mean (numpy.ndarray): The mean values of the input data.
+        std (numpy.ndarray): The standard deviation values of the input data.
+        eps (float): A small value added to the denominator to avoid division by zero.
+
+    Methods:
+        encode(x): Normalize the input data using unit Gaussian normalization.
+        decode(x): Denormalize the input data using unit Gaussian normalization.
+    """
+
+    def __init__(self, x, eps=1e-5):
+        super(UnitGaussianNormalizer, self).__init__()
+
+        self.mean = np.mean(x, 0)
+        self.std = np.std(x, 0)
+        self.eps = eps
+
+    def encode(self, x):
+        """
+        Normalize the input data using unit Gaussian normalization.
+
+        Args:
+            x (numpy.ndarray): The input data to be normalized.
+
+        Returns:
+            numpy.ndarray: The normalized data.
+        """
+        return (x - self.mean) / (self.std + self.eps)
+
+    def decode(self, x):
+        """
+        Denormalize the input data using unit Gaussian normalization.
+
+        Args:
+            x (numpy.ndarray): The normalized data to be denormalized.
+
+        Returns:
+            numpy.ndarray: The denormalized data.
+        """
+        return (x * (self.std + self.eps)) + self.mean
+
+class InactiveNormalizer(object):
+    """
+    A class for normalizing and denormalizing data using an inactive approach.
+    """
+
+    def __init__(self, x, eps=1e-5):
+        super(InactiveNormalizer, self).__init__()
+
+    def encode(self, x):
+        """
+        Encodes the input data.
+
+        Args:
+            x: The input data to be encoded.
+
+        Returns:
+            The encoded data.
+        """
+        return x
+
+    def decode(self, x):
+        """
+        Decodes the input data.
+
+        Args:
+            x: The input data to be decoded.
+
+        Returns:
+            The decoded data.
+        """
         return x
 
 def subsample_and_flatten(matrix, stride):
@@ -99,3 +200,23 @@ def subsample_and_flatten(matrix, stride):
     result = [matrix[:, i, j] for i, j in indices]
 
     return np.array(indices).astype('float32'), np.array(result).T.astype('float32')
+
+def patch_coords(matrix, stride):
+    """
+    Generate coordinates for each element in the matrix.
+
+    Args:
+        matrix (ndarray): Input matrix.
+        stride (int): Stride value.
+
+    Returns:
+        ndarray: Array of coordinates for each element in the matrix.
+    """
+    N, rows, cols = matrix.shape
+
+    nx = np.linspace(0,1,num=cols)
+    ny = np.linspace(0,1,num=rows)
+
+    coords = np.array(np.meshgrid(nx,ny))
+    
+    return coords
