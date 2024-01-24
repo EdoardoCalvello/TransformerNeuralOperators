@@ -181,6 +181,13 @@ class SimpleEncoderModule(pl.LightningModule):
         elif self.domain_dim == 2:
             self.batch_figs_2D(x, y_true, y_pred, coords_x, coords_y, tag, idx)
 
+    def make_test_figs(self, median_sample, worst_sample, tag=None):
+
+        if self.domain_dim == 1:
+            self.test_figs_1D(median_sample, worst_sample, tag)
+        elif self.domain_dim == 2:
+            self.test_figs_2D(median_sample, worst_sample, tag)
+
     def batch_figs_1D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx):
         # Plot Trajectories
         plt.figure()
@@ -330,13 +337,159 @@ class SimpleEncoderModule(pl.LightningModule):
                                         torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))))
         self.log(f"loss/test/rel_L2/dt{dt}", rel_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
+        
+        # Save the test losses and corresponding indices for each DataLoader index
+        if dataloader_idx not in self.test_losses:
+            self.test_losses[dataloader_idx] = {'losses': [], 'indices': [], 'prediction':[]}
+        
+        for i in range(x.size(0)):
+            loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i:i+1] -y[i:i+1])**2, dim=1),dim=1)),
+                                        torch.sqrt(torch.mean(torch.mean(y[i:i+1]**2, dim=1),dim=1)))
 
-        # log plots
-        if batch_idx == 0:
-            self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag=f"Test/dt{dt}")
+            # Save the test losses and corresponding indices for each DataLoader index
+            self.test_losses[dataloader_idx]['losses'].append(loss_sample.cpu().detach().numpy())
+            self.test_losses[dataloader_idx]['indices'].append((batch_idx, i))
+            self.test_losses[dataloader_idx]['prediction'].append(y_hat[i:i+1])
+
 
         loss_dict = {"l2": loss, "l2_rel": rel_loss}
         return loss_dict[self.loss_name]
+    
+
+    def test_figs_1D(self, median_sample, worst_sample, tag):
+
+
+        x_median, y_median, coords_x_median, coords_y_median,y_pred_median, median_error = median_sample
+        x_min, y_min, coords_x_min, coords_y_min, y_pred_min, min_error = worst_sample
+
+        #make all the previous into numpy arrays
+        x_median, y_median, coords_x_median, coords_y_median, y_pred_median, median_error = x_median.cpu().numpy(), y_median.cpu().numpy(), coords_x_median.cpu().numpy(), coords_y_median.cpu().numpy(), y_pred_median.cpu().numpy(), median_error[0]
+        x_min, y_min, coords_x_min, coords_y_min , y_pred_min, min_error = x_min.cpu().numpy(), y_min.cpu().numpy(), coords_x_min.cpu().numpy(), coords_y_min.cpu().numpy() , y_pred_min.cpu().numpy(), min_error[0]
+
+        plt.figure()
+        fig, axs = plt.subplots(
+            nrows=self.output_dim,
+            ncols=2,
+            figsize=(14 * y_min.shape[1], 7 * self.output_dim),
+            sharex=True,
+            squeeze=False,
+        )
+
+        axs[0, 1].set_title(
+                f"Trajectories for predicted components: \nMaximum Relative L2 Error ({min_error:.2e})"
+            )
+
+        axs[0, 0].set_title(
+            f"Trajectories for predicted components: \nMedian Relative L2 Error ({median_error:.2e})"
+        )
+
+        # In the first column, plot the inputs
+
+        # Min
+        axs[0, 1].plot(
+            coords_x_min[:, 0],
+            x_min[:, i],
+            linewidth=3,
+            color="blue",
+            label=f"Input",
+        )
+        axs[0, 1].set_xlabel("Time")
+        axs[0, 1].legend()
+
+        # Median
+        axs[0, 0].plot(
+            coords_x_median[:, 0],
+            x_median[:, i],
+            linewidth=3,
+            color="blue",
+            label=f"Input",
+        )
+        axs[0, 0].set_xlabel("Time")
+        axs[0, 0].legend()
+
+        for i in range(self.output_dim):
+
+            # Min
+            axs[i+1, 1].plot(
+                coords_y_min[:, 0],
+                y_min[:, i],
+                linewidth=3,
+                color="blue",
+                label="Ground Truth",
+            )
+            axs[i+1, 1].plot(
+                coords_y_min,
+                y_pred_min[0, :, i],
+                linewidth=3,
+                color="red",
+                label="Prediction",
+            )
+            axs[i+1, 1].set_xlabel("Time")
+            axs[i+1, 1].set_ylabel("Prediction")
+            axs[i+1, 1].legend()
+
+            # Median
+            axs[i+1, 0].plot(
+                coords_y_median[:, 0],
+                y_median[:, i],
+                linewidth=3,
+                color="blue",
+                label="Ground Truth",
+            )
+            axs[i+1, 0].plot(
+                coords_y_median,
+                y_pred_median[0, :, i],
+                linewidth=3,
+                color="red",
+                label="Prediction",
+            )
+            axs[i+1, 0].set_xlabel("Time")
+            axs[i+1, 0].set_ylabel("Prediction")
+            axs[i+1, 0].legend()
+
+            # If you want to add space between rows, you can adjust the hspace parameter here.
+
+        fig.suptitle(f"Trajectories: Prediction vs. Truth (sample rate = {tag})")
+        plt.subplots_adjust(hspace=0.5)
+        plt.close()
+    
+    def on_test_epoch_end(self):
+
+        for dataloader_idx, dataloader_losses in self.test_losses.items():
+            losses = torch.tensor(dataloader_losses['losses'])
+
+            # Calculate median and worst error indices
+            median_idx = int(torch.argsort(losses,dim=0)[len(losses) // 2])
+            worst_idx = int(torch.argmax(losses))
+
+            # Access indices of median and worst cases
+            median_batch_idx, median_sample_idx = dataloader_losses['indices'][median_idx]
+            worst_batch_idx, worst_sample_idx = dataloader_losses['indices'][worst_idx]
+
+            # Access the test data loaders
+            dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
+            test_dataloader = self.trainer.datamodule.test_dataloader()[dt]
+
+            # Retrieve the samples using indices, 
+            ###################################################
+            ###################################################
+            # !!!!!terrible code!!!!!
+            for batch_idx, batch in enumerate(test_dataloader):
+                if batch_idx == median_batch_idx:
+                    median_batch = batch
+                if batch_idx == worst_batch_idx:
+                    worst_batch = batch
+
+
+            median_sample = [median_batch[i][median_sample_idx] for i in range(4)]+[dataloader_losses['prediction'][median_idx], dataloader_losses['losses'][median_idx]]
+            worst_sample =  [worst_batch[i][worst_sample_idx] for i in range(4)]+[dataloader_losses['prediction'][worst_idx], dataloader_losses['losses'][worst_idx]]
+            ###################################################
+            ###################################################
+
+            # Now you can use median_sample and worst_sample to plot relevant information or perform further analysis
+    
+            self.make_test_figs(median_sample, worst_sample, tag=f'Test/dt{dt}')
+
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
