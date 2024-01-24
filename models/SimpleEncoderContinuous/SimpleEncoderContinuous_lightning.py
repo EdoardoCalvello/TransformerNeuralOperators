@@ -43,6 +43,7 @@ class SimpleEncoderModule(pl.LightningModule):
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
         self.domain_dim = domain_dim
+        self.output_dim = output_dim
         self.loss_name = loss_name
 
         # whether to use y as input to the encoder
@@ -68,6 +69,8 @@ class SimpleEncoderModule(pl.LightningModule):
                                     dropout=dropout,
                                     norm_first=norm_first,
                                     dim_feedforward=dim_feedforward)
+        
+        self.test_losses = {}
 
     def forward(self, x, y, coords_x, coords_y):
         coords_x = coords_x[0].unsqueeze(2)
@@ -368,7 +371,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         plt.figure()
         fig, axs = plt.subplots(
-            nrows=self.output_dim,
+            nrows=(self.output_dim+1),
             ncols=2,
             figsize=(14 * y_min.shape[1], 7 * self.output_dim),
             sharex=True,
@@ -388,7 +391,7 @@ class SimpleEncoderModule(pl.LightningModule):
         # Min
         axs[0, 1].plot(
             coords_x_min[:, 0],
-            x_min[:, i],
+            x_min[:, 0],
             linewidth=3,
             color="blue",
             label=f"Input",
@@ -399,7 +402,7 @@ class SimpleEncoderModule(pl.LightningModule):
         # Median
         axs[0, 0].plot(
             coords_x_median[:, 0],
-            x_median[:, i],
+            x_median[:, 0],
             linewidth=3,
             color="blue",
             label=f"Input",
@@ -418,7 +421,7 @@ class SimpleEncoderModule(pl.LightningModule):
                 label="Ground Truth",
             )
             axs[i+1, 1].plot(
-                coords_y_min,
+                coords_y_min[:, 0],
                 y_pred_min[0, :, i],
                 linewidth=3,
                 color="red",
@@ -437,7 +440,7 @@ class SimpleEncoderModule(pl.LightningModule):
                 label="Ground Truth",
             )
             axs[i+1, 0].plot(
-                coords_y_median,
+                coords_y_median[:, 0],
                 y_pred_median[0, :, i],
                 linewidth=3,
                 color="red",
@@ -451,6 +454,8 @@ class SimpleEncoderModule(pl.LightningModule):
 
         fig.suptitle(f"Trajectories: Prediction vs. Truth (sample rate = {tag})")
         plt.subplots_adjust(hspace=0.5)
+        wandb.log(
+                {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
         plt.close()
     
     def on_test_epoch_end(self):
