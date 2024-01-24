@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 import wandb
 import matplotlib.pyplot as plt
 
-from models.SimpleEncoder.SimpleEncoder_pytorch import SimpleEncoder
+from models.SimpleEncoderContinuous.SimpleEncoderContinuous_pytorch import SimpleEncoder
 
 # Define the pytorch lightning module for training the Simple Encoder model
 class SimpleEncoderModule(pl.LightningModule):
