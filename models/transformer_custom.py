@@ -11,12 +11,14 @@ class ScaledDotProductAttention(nn.Module):
         self.scale = nn.Parameter(torch.sqrt(torch.FloatTensor([d_k])), requires_grad=False)
         self.dropout = nn.Dropout(dropout)
 
-    def custom_softmax(self, x, coords, dim=-1):
+    def custom_softmax(self, x, coords=None, dim=-1):
 
         exp_x = torch.exp(x - x.max(dim=dim, keepdim=True)[0])
         #reweighting of exp_x along seq_len dimension
-        softmax_x = exp_x / (coords*exp_x[...,1:]).sum(dim=dim, keepdim=True)
-
+        if coords is not None:
+            softmax_x = exp_x / (coords*exp_x[...,1:]).sum(dim=dim, keepdim=True)
+        else:
+            softmax_x = exp_x / exp_x.sum(dim=dim, keepdim=True)
         return softmax_x
 
     def forward(self, query, key, value, coords, key_padding_mask=None):
@@ -30,17 +32,20 @@ class ScaledDotProductAttention(nn.Module):
             coords = coords.permute(1,2,0).unsqueeze(0)
             #coords is now a vector of distances between coordinates such that the shape is broadcastable with scores[...,1:] (1,1,1,seq_len-1)
         else:
-            coords = 1
+            coords = None
 
         if key_padding_mask is not None:
             scores = scores.masked_fill(key_padding_mask.unsqueeze(1).unsqueeze(2), float('-inf'))
 
-        attention_weights = self.custom_softmax(scores, coords, dim=-1)
+        attention_weights = self.custom_softmax(scores, coords=coords, dim=-1)
         attention_weights = self.dropout(attention_weights)
         
         #reweighting of value along seq_len dimension
-        value = coords.permute(0,1,3,2)*value[...,1:,:]
-        output = torch.einsum("bhls,bhsd->bhld", attention_weights[...,1:], value)
+        if coords is not None:
+            value = coords.permute(0,1,3,2)*value[...,1:,:]
+            output = torch.einsum("bhls,bhsd->bhld", attention_weights[...,1:], value)
+        else:
+            output = torch.einsum("bhls,bhsd->bhld", attention_weights, value)
        
         return output
 
