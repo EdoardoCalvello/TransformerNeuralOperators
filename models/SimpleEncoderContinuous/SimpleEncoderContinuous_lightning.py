@@ -499,7 +499,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         plt.figure()
         fig, axs = plt.subplots(
-            nrows=4, ncols=2, figsize=(16, 24), sharex=True, squeeze=False)
+            nrows=2, ncols=4, figsize=(24, 12), sharex=True, squeeze=False)
 
         x_input_min = griddata(
                 (coords_x_min[:, 0], coords_x_min[:, 1]), x_min, (x1i_min, x2i_min), method='linear')
@@ -516,31 +516,31 @@ class SimpleEncoderModule(pl.LightningModule):
         y_rel_diff_median = np.abs(y_pred_median - y_true_median)
 
         data_sets = {
-            (0, 1): x_input_min,
-            (1, 1): y_true_min,
-            (2, 1): y_pred_min,
-            (3, 1): np.log10(y_rel_diff_min),
             (0, 0): x_input_median,
-            (1, 0): y_true_median,
-            (2, 0): y_pred_median,
-            (3, 0): np.log10(y_rel_diff_median)
+            (0, 1): y_true_median,
+            (0, 2): y_pred_median,
+            (0, 3): np.log10(y_rel_diff_median),
+            (1, 0): x_input_min,
+            (1, 1): y_true_min,
+            (1, 2): y_pred_min,
+            (1, 3): np.log10(y_rel_diff_min)
         }
 
         for (i, j), data in data_sets.items():
-            bounds = (-7, 1) if i == 3 else (None, None)
-            im = axs[i, j].imshow(data, cmap='viridis' if i < 3 else 'inferno', vmin=bounds[0], vmax=bounds[1])
+            bounds = (-7, 1) if j == 3 else (None, None)
+            im = axs[i, j].imshow(data, cmap='viridis' if j < 3 else 'inferno', vmin=bounds[0], vmax=bounds[1])
+            error_info = f"Median Relative L2 Error ({median_error:.2e})" if i == 0 else f"Maximum Relative L2 Error ({min_error:.2e})"
             axs[i, j].set_title(
-                f"{'Input Field' if i == 0 else 'Ground Truth' if i == 1 else 'Prediction' if i == 2 else 'Pointwise Error'} "
-                f"{'(Median)' if j == 0 else '(Worst)'}", fontsize=18
+                f"{'Input Field: ' if j == 0 else 'Ground Truth:' if j == 1 else 'Prediction:' if j == 2 else 'Pointwise Error:'}\n "
+                f"{error_info}", 
+                fontsize=14
             )
 
-            cbar = plt.colorbar(im, ax=axs[i, j])
+            fig.colorbar(im, ax=axs[i, j], shrink=0.6)
 
-        fig.text(0.25, 0.02, f'Relative L2 Error: {median_error:.2e} ', ha='center', va='bottom', fontsize=18)
-        fig.text(0.75, 0.02, f'Relative L2 Error: {min_error:.2e}', ha='center', va='bottom', fontsize=18)
 
-        fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth', fontsize=20)
-        plt.subplots_adjust(hspace=0.5,wspace=0)
+        fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth', fontsize=30)
+        plt.subplots_adjust(hspace=-0.1, wspace=0.1)
         wandb.log(
                 {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
         plt.close()
