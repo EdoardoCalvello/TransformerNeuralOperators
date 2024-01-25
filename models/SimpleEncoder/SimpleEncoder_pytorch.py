@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+
 from torch.nn import TransformerEncoder
 from torch.nn import TransformerEncoderLayer
 
@@ -35,7 +36,7 @@ class SimpleEncoder(torch.nn.Module):
             dropout=dropout,
             activation=activation,
             norm_first=norm_first,
-            do_layer_norm=do_layer_norm,
+            #do_layer_norm=do_layer_norm,
             dim_feedforward=dim_feedforward,
             batch_first=True)  # when batch first, expects input tensor (batch_size, Seq_len, input_dim)
         self.encoder = TransformerEncoder(
@@ -126,7 +127,7 @@ class SimpleEncoder(torch.nn.Module):
         x = self.apply_positional_encoding(x, coords_x) # coords_x is "time" for 1D case
 
         if self.use_transformer:
-            x = self.encoder(x, coords_x)  # (batch_size, seq_len, dim_state)
+            x = self.encoder(x)  # (batch_size, seq_len, dim_state)
 
         x = self.linear_out(x)  # (seq_len, batch_size, output_dim)
 
