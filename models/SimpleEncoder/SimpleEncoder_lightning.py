@@ -237,7 +237,7 @@ class SimpleEncoderModule(pl.LightningModule):
             x_layer_output = x_layer_output.unsqueeze(0)
             for i, layer in enumerate(self.model.encoder.layers):
                 #need to make sure coords_x has dimension (seq_ln,1,1)
-                x_layer_output = layer(x_layer_output,torch.tensor(coords_x[idx_val]).to(x_layer_output).unsqueeze(1))
+                x_layer_output = layer(x_layer_output)
                 # Plot the output of this layer
                 for j, id in enumerate(idx_dim):
                     axs[j, col].plot(coords_x[idx_val].squeeze(),
