@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import copy
 
 
 class ScaledDotProductAttention(nn.Module):
@@ -114,9 +115,9 @@ class TransformerEncoderLayer(nn.Module):
     
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, encoder_layer, num_layers):
+    def __init__(self, encoder_layer, num_layers=1):
         super(TransformerEncoder, self).__init__()
-        self.layers = nn.ModuleList([encoder_layer for _ in range(num_layers)])
+        self.layers = nn.ModuleList([copy.deepcopy(encoder_layer) for _ in range(num_layers)])
 
     def forward(self, x, coords_x, mask=None):
         for layer in self.layers:
@@ -293,7 +294,7 @@ class TransformerEncoderLayer_Operator(nn.Module):#
 class TransformerEncoder_Operator(nn.Module):
     def __init__(self, encoder_layer, num_layers):
         super(TransformerEncoder_Operator, self).__init__()
-        self.layers = nn.ModuleList([encoder_layer for _ in range(num_layers)])
+        self.layers = nn.ModuleList([copy.deepcopy(encoder_layer) for _ in range(num_layers)])
 
     def forward(self, x, mask=None):
         for layer in self.layers:
