@@ -108,7 +108,9 @@ class DynSys(object):
         #times = torch.arange(0, T, dt)
         ####
         torch.manual_seed(0)
-        times = torch.sort(T*torch.rand(int(T/dt)), dim=0)[0]
+        gaussian_vector = torch.randn(int(T/dt))
+        sorted_vector, _ = torch.sort(gaussian_vector)
+        times = (sorted_vector - sorted_vector.min()) / (sorted_vector.max() - sorted_vector.min()) * T
         ####
         xyz0 = self.get_inits(N_traj)
         xyz = odeint(self.rhs, xyz0, times)
