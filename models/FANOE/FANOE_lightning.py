@@ -14,7 +14,7 @@ import pdb
 
 from itertools import islice
 
-from models.FANO.FANO_pytorch import SimpleEncoder
+from models.FANOE.FANOE_pytorch import SimpleEncoder
 
 # Define the pytorch lightning module for training the Simple Encoder model
 class SimpleEncoderModule(pl.LightningModule):
