@@ -654,7 +654,7 @@ class TransformerEncoderLayer_Conv_E(nn.Module):#
         self.norm3 = nn.LayerNorm(d_model)
         # Activation function
 
-        self.fourier_conv = SpectralConv2d(d_model, d_model, modes1+3, modes2+3)
+        self.fourier_conv = SpectralConv2d(d_model, d_model, modes1+4, modes2+4)
 
         self.activation = getattr(F, activation)
         # Dropout
