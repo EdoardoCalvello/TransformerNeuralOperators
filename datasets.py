@@ -5,8 +5,9 @@ from torchdiffeq import odeint
 import pytorch_lightning as pl
 import scipy.io
 from sklearn.model_selection import train_test_split
-from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer
-from utils import subsample_and_flatten, patch_coords, fourier_coords, FourierNormalizer
+from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer, FourierNormalizer
+from utils import subsample_and_flatten, patch_coords, fourier_coords, fourier_transformation
+import h5py
 
 from pdb import set_trace as bp
 
