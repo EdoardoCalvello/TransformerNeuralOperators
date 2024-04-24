@@ -6,7 +6,7 @@ import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='darcy_flow_1.0')
+parser.add_argument('--project_name', type=str, default='2d_paper_experiments_Vanilla')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
