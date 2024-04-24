@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import scipy.io
 from sklearn.model_selection import train_test_split
 from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer
-from utils import subsample_and_flatten
+from utils import subsample_and_flatten, patch_coords, fourier_coords, FourierNormalizer
 
 from pdb import set_trace as bp
 
@@ -49,8 +49,26 @@ def load_dyn_sys_class(dataset_name):
         # Add more dataset classes here for other systems
 
         # add filenames to load
-        'darcy_low_res': '../../data/lognormal_N1024_s61.mat',
-        'darcy_high_res': '../../data/lognormal_N6024_s421.mat',
+        'darcy_low_res': '../../data/lognormal_N4000_s64.mat',
+        'darcy_high_res': '../../data/lognormal_N4000_s416.mat',
+        'darcy_low_res_half': '../../data/lognormal_N500_s32.mat',
+        'darcy_high_res_half': '../../data/lognormal_N500_s208.mat',
+        'darcy_low_res_double': '../../data/lognormal_N500_s128.mat',
+        'darcy_high_res_double': '../../data/lognormal_N500_s832.mat',
+        'darcy_high_res_midlow': '../../data/lognormal_N500_s312.mat',
+        'darcy_high_res_midhigh': '../../data/lognormal_N500_s624.mat',
+
+        'darcy_discontinuous': '../../data/darcy_discontinuous_N4000_s416.mat',
+        'darcy_discontinuous_half': '../../data/darcy_discontinuous_N500_s208.mat',
+        'darcy_discontinuous_double': '../../data/darcy_discontinuous_N500_s832.mat',
+        'darcy_discontinuous_midlow': '../../data/darcy_discontinuous_N500_s312.mat',
+        'darcy_discontinuous_midhigh': '../../data/darcy_discontinuous_N500_s624.mat',
+
+        'NavierStokes': '../../data/NavierStokes_N10000_s416_FP_FNO_Re70_11to111.pt',
+        'NavierStokes_half': '../../data/NavierStokes_N100_s208_FP_FNO_Re70_11to115.pt',
+        'NavierStokes_double': '../../data/NavierStokes_N100_s832_FP_FNO_Re70_11to115.pt',
+        'NavierStokes_midlow': '../../data/NavierStokes_N100_s312_FP_FNO_Re70_11to115.pt',
+        'NavierStokes_midhigh': '../../data/NavierStokes_N100_s624_FP_FNO_Re70_11to115.pt',
     }
 
     if dataset_name in dataset_classes:
@@ -522,64 +540,230 @@ class DynamicsDataModule(pl.LightningDataModule):
             return DataLoader(self.test[sample_rate], batch_size=self.batch_size)
 
 ############ Spatial 2D data set ################
+############ Spatial 2D data set ################
 class Spatial2dDataModule(pl.LightningDataModule):
     def __init__(self,
                  batch_size=64,
                  split_frac={'train': 0.6, 'val': 0.2, 'test': 0.2},
                  train_sample_rate=2, # strides in this case
                  test_sample_rates=[1,2,4], # strides in this case
+                 test_im_sizes=[32,64,128],
+                 test_patch_sizes=[8,16,32],
                  dyn_sys_name='darcy_low_res',
                  random_state=0,
+                 patch=False,
+                 fourier=False,
                  **kwargs
                  ):
         super().__init__()
         self.batch_size = batch_size
         self.train_sample_stride = train_sample_rate
         self.test_sample_rates = test_sample_rates
+        self.test_im_sizes = test_im_sizes
+        self.test_patch_sizes = test_patch_sizes
         self.dyn_sys_name = dyn_sys_name
         self.random_state = random_state
+        self.patch = patch
+        self.fourier = fourier
 
         self.make_splits(split_frac)
 
     def make_splits(self, split_frac):
+
         fname = load_dyn_sys_class(self.dyn_sys_name)
-        data = scipy.io.loadmat(fname)
-        x = data['input']
-        y = data['output']
 
-        x_train_val, x_test, y_train_val, y_test = train_test_split(
-            x, y,
-            test_size=split_frac['test'],random_state=self.random_state)
+        if self.dyn_sys_name == 'NavierStokes':
 
-        # split train_val into train, val
-        x_train, x_val, y_train, y_val = train_test_split(
-            x_train_val, y_train_val,
-            train_size=split_frac['train'], random_state=self.random_state)
+            file = torch.load(fname).numpy()
+            total_samples = file.shape[0]
+            indices = np.arange(total_samples)
+            np.random.seed(self.random_state)
+            np.random.shuffle(indices)
+
+            train_size = int(split_frac['train'] * total_samples)
+            val_size = int(split_frac['val'] * total_samples)
+
+            train_indices = sorted(indices[:train_size].tolist())
+            val_indices = sorted(indices[train_size:(train_size + val_size)].tolist())
+            test_indices = sorted(indices[(train_size + val_size):].tolist())
+
+            x_train, y_train = file[train_indices,:,:,0], file[train_indices,:,:,1]
+            x_val, y_val = file[val_indices,:,:,0], file[val_indices,:,:,1]
+            x_test, y_test = file[test_indices,:,:,0], file[test_indices,:,:,1]
+
+        else:
+            with h5py.File(fname, "r") as f:
+
+                #divide into train test and validation datasets
+                # Get the total number of samples
+                total_samples = f['x'].shape[2]  
+                # Create indices for shuffling
+                indices = np.arange(total_samples)
+                np.random.seed(self.random_state)  # Set a seed for reproducibility
+                np.random.shuffle(indices)
+
+                # Determine the sizes of each set based on split_frac
+                train_size = int(split_frac['train'] * total_samples)
+                val_size = int(split_frac['val'] * total_samples)
+                #test_size = total_samples - train_size - val_size
+
+                # Split the indices
+                train_indices = sorted(indices[:train_size].tolist())
+                val_indices = sorted(indices[train_size:(train_size + val_size)].tolist())
+                test_indices = sorted(indices[(train_size + val_size):].tolist())
+
+                # Assign data based on the indices
+                x_train, y_train = np.transpose(f['x'][:,:,train_indices],(2, 0, 1)), np.transpose(f['y'][:,:,train_indices],(2, 0, 1))
+                x_val, y_val = np.transpose(f['x'][:,:,val_indices],(2, 0, 1)), np.transpose(f['y'][:,:,val_indices],(2, 0, 1))
+                x_test, y_test = np.transpose(f['x'][:,:,test_indices],(2, 0, 1)), np.transpose(f['y'][:,:,test_indices],(2, 0, 1))
+
 
         # define sets
-        self.x_train, self.x_val, self.x_test = x_train, x_val, x_test
-        self.y_train, self.y_val, self.y_test = y_train, y_val, y_test
+        self.x_train, self.y_train, self.active_coordinates_x, self.active_coordinates_y = self.sample(x_train, y_train, self.train_sample_stride)
+        self.x_val, self.y_val, _, _ = self.sample(x_val, y_val, self.train_sample_stride)
+
+        
+        #normalize fourier transform by mean and std of fourier transform of training data
+        if self.fourier:
+            self.x_train_fourier_normalizer = FourierNormalizer(self.x_train)
+        else:
+            self.x_train_fourier_normalizer = 0
+        
+        #delete if uncomment above
+        #self.x_train_fourier_normalizer = 0
+
+        # define test sets
+        self.x_test, self.y_test = {}, {}
+        self.active_coordinates_x_test, self.active_coordinates_y_test = {}, {}
+
+        if self.patch or self.fourier:
+            #for stride in self.test_sample_rates: if stride is 1, then we just use x_test and y_test, if stride is 2 then use self.dyn_sys_name+'_half' if 
+            #stride is 0.5 then use self.dyn_sys_name+'_double'
+
+            if self.dyn_sys_name == 'NavierStokes':
+
+                for stride in self.test_sample_rates:
+                    if stride == 1:
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test, y_test, stride, test=True)
+                    elif stride == 2:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_half')
+                        file = torch.load(fname).numpy()
+                        x_test_half, y_test_half = file[:,:,:,0], file[:,:,:,1]
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_half, y_test_half, stride, test=True)
+                    elif stride == 0.5:                    
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_double')
+                        file = torch.load(fname).numpy()
+                        x_test_double, y_test_double = file[:,:,:,0], file[:,:,:,1]
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_double, y_test_double, stride, test=True)
+                    elif stride == 0.75:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_midhigh')
+                        file = torch.load(fname).numpy()
+                        x_test_midhigh, y_test_midhigh = file[:,:,:,0], file[:,:,:,1]
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_midhigh, y_test_midhigh, stride, test=True)
+                    elif stride == 1.5:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_midlow')
+                        file = torch.load(fname).numpy()
+                        x_test_midlow, y_test_midlow = file[:,:,:,0], file[:,:,:,1]
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_midlow, y_test_midlow, stride, test=True)
+                    
+
+
+            else:
+
+                 for stride in self.test_sample_rates:
+                    if stride == 1:
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test, y_test, stride, test=True)
+                    elif stride == 2:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_half')
+                        with h5py.File(fname, "r") as f:
+                            x_test_half, y_test_half = np.transpose(f['x'][:,:,:],(2, 0, 1)), np.transpose(f['y'][:,:,:],(2, 0, 1))
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_half, y_test_half, stride, test=True)
+                    elif stride == 0.5:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_double')
+                        with h5py.File(fname, "r") as f:
+                            x_test_double, y_test_double = np.transpose(f['x'][:,:,:],(2, 0, 1)), np.transpose(f['y'][:,:,:],(2, 0, 1))
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_double, y_test_double, stride, test=True)
+                    elif stride == 0.75:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_midhigh')
+                        with h5py.File(fname, "r") as f:
+                            x_test_midhigh, y_test_midhigh = np.transpose(f['x'][:,:,:],(2, 0, 1)), np.transpose(f['y'][:,:,:],(2, 0, 1))
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_midhigh, y_test_midhigh, stride, test=True)
+                    elif stride == 1.5:
+                        fname = load_dyn_sys_class(self.dyn_sys_name+'_midlow')
+                        with h5py.File(fname, "r") as f:
+                            x_test_midlow, y_test_midlow = np.transpose(f['x'][:,:,:],(2, 0, 1)), np.transpose(f['y'][:,:,:],(2, 0, 1))
+                        self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_midlow, y_test_midlow, stride, test=True)
+                    else:
+                        raise ValueError(f"Stride {stride} not supported for patch or fourier")
+
+
+        else:
+            for stride in self.test_sample_rates:
+                self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test, y_test, stride, test=True)
+
+
+    def sample(self, x, y, stride, test=False):
+
+        if self.fourier:
+
+            # x, y are (N, length, width)
+            active_coordinates_x = fourier_coords(x,stride)
+            active_coordinates_y = fourier_coords(y,stride)
+
+            #x = sample_2D(x, stride, test)
+            #y = sample_2D(y, stride, test)
+
+            '''
+            #if test==False:
+            y = fourier_transformation(y)
+            '''
+
+        elif self.patch:
+
+            # x, y are (N, length, width)
+            active_coordinates_x = patch_coords(x,stride)
+            active_coordinates_y = patch_coords(y,stride)
+
+            #x = sample_2D(x, stride, test)
+            #y = sample_2D(y, stride, test)
+
+        else:
+
+            # x, y are (N, length, width)
+            # subsample x, y to take all elements on the boundary, and elements in the interior according to stride
+            active_coordinates_x, x = subsample_and_flatten(x, stride)
+            active_coordinates_y, y = subsample_and_flatten(y, stride)
+
+            # add extra dimension to x, y so that
+            # x: (N, length*width, 1)
+            # y: (N, length*width, 1)
+            x = x[..., None]
+            y = y[..., None]
+
+
+        return x, y, active_coordinates_x, active_coordinates_y
+
 
     def setup(self, stage: str):
 
         # Assign train/val datasets for use in dataloaders
         self.train = Spatial2dDataset(self.x_train, self.y_train,
-                            stride=self.train_sample_stride,
-                            )
-
+                                      self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer)
+        
         self.val = Spatial2dDataset(self.x_val, self.y_val,
-                            stride=self.train_sample_stride,
+                            self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer,
                             x_normalizer=self.train.x_normalizer,
-                            y_normalizer=self.train.y_normalizer,
-                            )
+                            y_normalizer=self.train.y_normalizer)
 
         # build a dictionary of test datasets with different sample rates
         self.test = {}
         for stride in self.test_sample_rates:
-            self.test[stride] = Spatial2dDataset(self.x_test, self.y_test,
-                                    stride=stride,
+            self.test[stride] = Spatial2dDataset(self.x_test[stride], self.y_test[stride],
+                                    self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride], 
+                                    self.x_train_fourier_normalizer,
                                     x_normalizer=self.train.x_normalizer,
                                     y_normalizer=self.train.y_normalizer,
+                                    test=True,
                                     )
             # NOTE: there is slight train/test leakage because the normalizer
             # sees all the high-frequency training data, and this normalization
@@ -598,40 +782,35 @@ class Spatial2dDataModule(pl.LightningDataModule):
     def test_dataloader(self, sample_rate=None):
         return {dt: DataLoader(self.test[dt], batch_size=self.batch_size) for dt in self.test_sample_rates}
 
-
 class Spatial2dDataset(Dataset):
     def __init__(self, x, y,
-                stride=2,
+                active_coordinates_x,
+                active_coordinates_y,
+                x_train_fourier_normalizer,
                 x_normalizer=None,
                 y_normalizer=None,
                 **kwargs):
         '''x: (N, length, width)
            y: (N, length, width)
         '''
-        self.generate_data(x, y, x_normalizer, y_normalizer, stride)
+        self.active_coordinates_x = active_coordinates_x
+        self.active_coordinates_y = active_coordinates_y
+        self.x_train_fourier_normalizer = x_train_fourier_normalizer
+        self.generate_data(x, y, x_normalizer, y_normalizer)
 
-    def generate_data(self, x, y, x_normalizer, y_normalizer, stride):
+    def generate_data(self, x, y, x_normalizer, y_normalizer):
         '''x: (N, length, width)
            y: (N, length, width)'''
-
-        # subsample x, y to take all elements on the boundary, and elements in the interior according to stride
-        # flattens x, y to be (N, length*width, 1)
-        self.active_coordinates_x, x = subsample_and_flatten(x, stride)
-        self.active_coordinates_y, y = subsample_and_flatten(y, stride)
-
-        # add extra dimension to x, y so that
-        # x: (N, length*width, 1)
-        # y: (N, length*width, 1)
-        x = x[..., None]
-        y = y[..., None]
 
         # compute normalization
         if x_normalizer is None or y_normalizer is None:
             #normalize data
-            self.x_normalizer = UnitGaussianNormalizer(
-                x.reshape(-1, x.shape[-1]))
-            self.y_normalizer = UnitGaussianNormalizer(
-                y.reshape(-1, y.shape[-1]))
+            self.x_normalizer = UnitGaussianNormalizer(x.reshape(-1,1))
+            self.y_normalizer = UnitGaussianNormalizer(y.reshape(-1,1))
+            #self.x_normalizer = UnitGaussianNormalizer(
+                #x.reshape(-1, x.shape[-1]))
+            #self.y_normalizer = UnitGaussianNormalizer(
+                #y.reshape(-1, y.shape[-1]))
         else:
             self.x_normalizer = x_normalizer
             self.y_normalizer = y_normalizer
@@ -644,4 +823,7 @@ class Spatial2dDataset(Dataset):
         return self.x.shape[0]
 
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx], self.active_coordinates_x, self.active_coordinates_y
+        return self.x[idx], self.y[idx], self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer
+    
+
+         

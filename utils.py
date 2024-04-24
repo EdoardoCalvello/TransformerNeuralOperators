@@ -220,3 +220,63 @@ def patch_coords(matrix, stride):
     coords = np.array(np.meshgrid(nx,ny))
     
     return coords
+
+
+def fourier_coords(matrix, stride):
+
+    N, rows, cols = matrix.shape
+    
+    rows = rows
+    cols = cols
+    #freq_rows = np.fft.fftfreq(rows)
+    #freq_cols = np.fft.fftfreq(cols)
+
+    # concatenate two 1d numpy arrays that are linspace of the same length
+    '''
+    freq_rows = 1/np.concatenate((np.linspace(cols//2,1,num=cols//2),np.linspace(-1,-cols//2,num=cols//2)))
+    freq_cols = 1/np.concatenate((np.linspace(rows//2,1,num=rows//2),np.linspace(-1,-rows//2,num=rows//2)))
+    '''
+
+    freq_rows = 1/np.linspace(1,cols,num=cols)
+    freq_cols = 1/np.linspace(1,rows,num=rows)
+
+    coords = np.array(np.meshgrid(freq_rows,freq_cols))
+
+    return coords
+
+def FourierNormalizer(matrix):
+    # matrix: a 3D numpy array of shape (N, rows, cols)
+
+    N, rows, cols = matrix.shape
+    # matrix: a 3D numpy array of shape (N, rows, cols)
+    fft = np.fft.rfft2(matrix, axes=(1, 2))[:,:,:cols//2]
+    mean_real = np.mean(fft.real.reshape(-1,1),0)[0]#*np.ones(fft.real.shape[1:])
+    mean_complex = np.mean(fft.imag.reshape(-1,1),0)[0]#*np.ones(fft.real.shape[1:])
+    std_real = np.std(fft.real.reshape(-1,1),0)[0]+ 1e-5#*np.ones(fft.real.shape[1:])
+    std_complex = np.std(fft.imag.reshape(-1,1),0)[0]+ 1e-5#*np.ones(fft.real.shape[1:])
+
+
+    return [mean_real, mean_complex, std_real, std_complex]
+
+def fourier_transformation(matrix):
+        
+        N, rows, cols = matrix.shape
+
+        #check this whole thing
+        x = rfft2(matrix, axes=(-2,-1), norm="ortho")[...,:-1] # (N, rows, cols//2)
+        '''
+        normalizer[0] = normalizer[0].unsqueeze(1)
+        normalizer[1] = normalizer[1].unsqueeze(1)
+        normalizer[2] = normalizer[2].unsqueeze(1)
+        normalizer[3] = normalizer[3].unsqueeze(1)
+        #import pdb; pdb.set_trace()
+        x_real = torch.div(x.real-normalizer[0],normalizer[2]).to(torch.float32)
+        x_imag = torch.div(x.real-normalizer[1],normalizer[3]).to(torch.float32)
+        '''
+
+
+        #x_real = x.real.to(torch.float32)
+        #x_imag = x.imag.to(torch.float32)
+        #x = torch.cat((x_real, x_imag), dim=1) # (batch_size, 2*(input_dim+domain_dim), rows, cols//2+1)
+
+        return x
