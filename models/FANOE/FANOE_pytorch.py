@@ -6,7 +6,7 @@ from torch.fft import rfft2, irfft2
 
 from models.transformer_custom import TransformerEncoder_Operator
 from models.transformer_custom import TransformerEncoderLayer_Conv_E
-from models.transformer_custom import SpectralConv2d, Smoothing2d
+from models.transformer_custom import SpectralConv2d
 
 
 

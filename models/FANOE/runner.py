@@ -170,7 +170,7 @@ class Runner:
         #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
         #                      **self.trainer_hyperparams, accelerator='gpu', devices=4)
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-                        **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=4)
+                        **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=2)
 
 
         # Tune the model
