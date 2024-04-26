@@ -141,7 +141,7 @@ class SimpleEncoderModule(pl.LightningModule):
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Train')
 
-        return rel_H1_loss
+        return rel_loss
 
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
@@ -217,7 +217,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Val')
-        return rel_H1_loss
+        return rel_loss
 
     def plot_positional_encoding(self, x, coords):
         pe = self.model.positional_encoding(x, coords)
@@ -309,7 +309,7 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log({f"plots/{tag}/Encoder Layer Plot": wandb.Image(fig)})
         plt.close('all')
 
-    def batch_figs_2D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx, n_grid=100):
+    def batch_figs_2D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx, n_grid=250):
 
         if self.fourier:
            
@@ -549,7 +549,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
         # plot the values of y_true and y_pred at the indices given by coords_y
-        n_grid=100
+        n_grid=250
 
         if self.fourier:
            
@@ -748,11 +748,11 @@ class SimpleEncoderModule(pl.LightningModule):
             grad_diff = torch.sqrt(torch.mean(torch.mean((dy_hat_dx - dy_dx)**2 + (dy_hat_dy - dy_dy)**2,dim=1),dim=0))
             grad_y = torch.sqrt(torch.mean(torch.mean(dy_dx**2 + dy_dy**2,dim=1),dim=0))
 
-            loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i] -y[i])**2, dim=1),dim=0))+grad_diff,
-                                            torch.sqrt(torch.mean(torch.mean(y[i]**2, dim=1),dim=0))+grad_y)
+            #loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i] -y[i])**2, dim=1),dim=0))+grad_diff,
+                                            #torch.sqrt(torch.mean(torch.mean(y[i]**2, dim=1),dim=0))+grad_y)
         
-            #loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i:i+1] -y[i:i+1])**2, dim=1),dim=1)),
-                                        #torch.sqrt(torch.mean(torch.mean(y[i:i+1]**2, dim=1),dim=1)))
+            loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i:i+1] -y[i:i+1])**2, dim=1),dim=1)),
+                                        torch.sqrt(torch.mean(torch.mean(y[i:i+1]**2, dim=1),dim=1)))
 
             # Save the test losses and corresponding indices for each DataLoader index
             self.test_losses[dataloader_idx]['losses'].append(loss_sample.cpu().detach().numpy())
