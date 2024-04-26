@@ -6,8 +6,7 @@ from torch.fft import rfft2, irfft2
 
 from models.transformer_custom import TransformerEncoder_Operator
 from models.transformer_custom import TransformerEncoderLayer_Conv
-from models.transformer_custom import SpectralConv2d, Smoothing2d
-
+from models.transformer_custom import SpectralConv2d
 
 
 # Define the neural network model
@@ -83,7 +82,7 @@ class SimpleEncoder(torch.nn.Module):
                 self.size_row = self.im_size
                 self.size_col = self.im_size
                 self.linear_out = nn.Linear(d_model,1)
-                self.smoothing = SpectralConv2d(1,1,64,64)
+                #self.smoothing = SpectralConv2d(1,1,64,64)
             self.num_patches = (self.size_row*self.size_col)//(self.patch_size**2)
 
         else:
@@ -261,9 +260,9 @@ class SimpleEncoder(torch.nn.Module):
         x = x.squeeze(3)
 
         
-        x = x.unsqueeze(1)
-        x = x + self.smoothing(x)
-        x = x.squeeze(1)
+        #x = x.unsqueeze(1)
+        #x = x + self.smoothing(x)
+        #x = x.squeeze(1)
         
 
         #learning residual
