@@ -85,7 +85,11 @@ class SimpleEncoderModule(pl.LightningModule):
             return self.model(x, y=None, coords_x=coords_x)
 
     def training_step(self, batch, batch_idx):
-        x, y, coords_x, coords_y = batch
+
+        if self.domain_dim == 1:
+            x, y, coords_x, coords_y = batch
+        else:
+            x, y, coords_x, coords_y,_ = batch
         y_hat = self.forward(x, y, coords_x, coords_y)
         loss = F.mse_loss(y_hat, y)
         self.log("loss/train/mse", loss, on_step=False,
@@ -136,7 +140,10 @@ class SimpleEncoderModule(pl.LightningModule):
                      on_step=False, on_epoch=True, prog_bar=False)
 
     def validation_step(self, batch, batch_idx):
-        x, y, coords_x, coords_y = batch
+        if self.domain_dim == 1:
+            x, y, coords_x, coords_y = batch
+        else:
+            x, y, coords_x, coords_y,_ = batch
         y_hat = self.forward(x, y, coords_x, coords_y)
         loss = F.mse_loss(y_hat, y)
         self.log("loss/val/mse", loss, on_step=False,
@@ -252,7 +259,7 @@ class SimpleEncoderModule(pl.LightningModule):
         wandb.log({f"plots/{tag}/Encoder Layer Plot": wandb.Image(fig)})
         plt.close('all')
 
-    def batch_figs_2D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx, n_grid=100):
+    def batch_figs_2D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx, n_grid=250):
 
         # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
         # plot the values of y_true and y_pred at the indices given by coords_y
@@ -323,7 +330,10 @@ class SimpleEncoderModule(pl.LightningModule):
 
         dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
 
-        x, y, coords_x, coords_y = batch
+        if self.domain_dim == 1:
+            x, y, coords_x, coords_y = batch
+        else:
+            x, y, coords_x, coords_y,_ = batch
         y_hat = self.forward(x, y, coords_x, coords_y)
         loss = F.mse_loss(y_hat, y)
         self.log(f"loss/test/mse/dt{dt}", loss, on_step=False,
@@ -471,7 +481,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
         # plot the values of y_true and y_pred at the indices given by coords_y
-        n_grid=100
+        n_grid=250
 
         # get the low and high indices of the y coordinates
         i_low_1, i_low_2 = np.min(coords_y_min[...,0]), np.min(coords_y_min[...,1])
