@@ -165,14 +165,14 @@ class Runner:
 
 
         # Initialize the trainer
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                      **self.trainer_hyperparams)
+        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+                              **self.trainer_hyperparams)
         #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
         #                     **self.trainer_hyperparams, plugins="deepspeed_stage_2", precision=16, devices=2)
         #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
         #                      **self.trainer_hyperparams, accelerator='gpu', devices=4)
-        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-                        **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=4)
+        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+        #                **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=4)
 
 
         # Tune the model
