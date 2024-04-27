@@ -17,7 +17,7 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'split_frac': [{'train': 0.6, 'val': 0.2, 'test': 0.2}],
+    'split_frac': [{'train': 0.9, 'val': 0.05, 'test': 0.05}],
     'random_state': [0],
     'domain_dim': [2], # 1 for timeseries, 2 for 2D spatial
     'train_sample_rate': [1],
@@ -26,14 +26,14 @@ exp_dict = {
     'test_patch_sizes': [[64,48,32,24,16]],
     'pos_enc_coeff': [1],#[0, 1, 2, 3],
     'batch_size': [1],
-    'dyn_sys_name': ['darcy_high_res'],
+    'dyn_sys_name': ['darcy_high_res','darcy_discontinuous'], #'darcy_high_res','darcy_discontinuous',
     # optimizer settings
     'learning_rate': [1e-3,1e-4],
     'dropout': [1e-4],
     'lr_scheduler_params': [
                             {'patience': 2, 'factor': 0.5},
                              ],
-    'max_epochs': [1,80],
+    'max_epochs': [80],
     'monitor_metric': ['loss/val/mse'],
     # model settings (modest model size for debugging)
     'include_y0_input': [False], #['uniform', 'staggered', False],

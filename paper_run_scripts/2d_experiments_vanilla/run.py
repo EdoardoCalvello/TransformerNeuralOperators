@@ -20,11 +20,11 @@ exp_dict = {
     'split_frac': [{'train': 0.9, 'val': 0.05, 'test': 0.05}],
     'random_state': [0],
     'domain_dim': [2], # 1 for timeseries, 2 for 2D spatial
-    'train_sample_rate': [25],
-    'test_sample_rates': [[12,25,50]],
+    'train_sample_rate': [1],
+    'test_sample_rates': [[0.5,1,2]],
     'pos_enc_coeff': [1],#[0, 1, 2, 3],
-    'batch_size': [1],
-    'dyn_sys_name': ['darcy_high_res_discontinuous'],
+    'batch_size': [1,4,8,16],
+    'dyn_sys_name': ['darcy_low_res'],
     # optimizer settings
     'learning_rate': [1e-4],
     'dropout': [1e-4],
@@ -51,5 +51,3 @@ print('Number of experiments to sweep: ', len(exp_list))
 
 # run the experiment
 Runner(**exp_list[args.id])
-
-

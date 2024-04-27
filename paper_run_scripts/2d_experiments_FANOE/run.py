@@ -25,10 +25,10 @@ exp_dict = {
     'test_im_sizes': [[832,624,416,312,208]],
     'test_patch_sizes': [[64,48,32,24,16]],
     'pos_enc_coeff': [1],#[0, 1, 2, 3],
-    'batch_size': [2],
-    'dyn_sys_name': ['NavierStokes'],
+    'batch_size': [1],
+    'dyn_sys_name': ['darcy_high_res','darcy_discontinuous'],
     # optimizer settings
-    'learning_rate': [1e-3,1e-4],
+    'learning_rate': [1e-3],
     'dropout': [1e-4],
     'lr_scheduler_params': [
                             {'patience': 2, 'factor': 0.5},

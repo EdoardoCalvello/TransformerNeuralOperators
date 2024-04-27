@@ -6,7 +6,7 @@ import argparse
 
 # use argparse to get command line argument for which experiment to run
 parser = argparse.ArgumentParser()
-parser.add_argument('--project_name', type=str, default='papeer_experiments')
+parser.add_argument('--project_name', type=str, default='2d_paper_experiments_FANO')
 parser.add_argument('--id', type=int, default=0)
 args = parser.parse_args()
 
@@ -25,8 +25,8 @@ exp_dict = {
     'test_im_sizes': [[832,624,416,312,208]],
     'test_patch_sizes': [[64,48,32,24,16]],
     'pos_enc_coeff': [1],#[0, 1, 2, 3],
-    'batch_size': [2],
-    'dyn_sys_name': ['NavierStokes'],
+    'batch_size': [1],
+    'dyn_sys_name': ['darcy_high_res','darcy_discontinuous'],
     # optimizer settings
     'learning_rate': [1e-3,1e-4],
     'dropout': [1e-4],
