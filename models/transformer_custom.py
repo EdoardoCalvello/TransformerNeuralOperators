@@ -314,8 +314,8 @@ class SpectralConv2d_in(nn.Module):
         self.modes2 = modes2
 
         self.scale = (1 / (in_channels * out_channels))
-        self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
-        self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, self.modes1, self.modes2, dtype=torch.cfloat))
+        self.weights1 = nn.Parameter(self.scale * torch.view_as_real(torch.rand(in_channels, out_channels, self.modes1, self.modes2, dtype=torch.cfloat)))
+        self.weights2 = nn.Parameter(self.scale * torch.view_as_real(torch.rand(in_channels, out_channels, self.modes1, self.modes2, dtype=torch.cfloat)))
 
     # Complex multiplication
     def compl_mul2d(self, input, weights):
@@ -331,9 +331,9 @@ class SpectralConv2d_in(nn.Module):
         # Multiply relevant Fourier modes
         out_ft = torch.zeros(batchsize, num_patches, self.out_channels,  x.size(-2), x.size(-1)//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[:,:, :, :self.modes1, :self.modes2] = \
-            self.compl_mul2d(x_ft[:, :,:, :self.modes1, :self.modes2], self.weights1)
+            self.compl_mul2d(x_ft[:, :,:, :self.modes1, :self.modes2], torch.view_as_complex(self.weights1))
         out_ft[:,:, :, -self.modes1:, :self.modes2] = \
-            self.compl_mul2d(x_ft[:, :,:, -self.modes1:, :self.modes2], self.weights2)
+            self.compl_mul2d(x_ft[:, :,:, -self.modes1:, :self.modes2], torch.view_as_complex(self.weights2))
 
         #Return to physical space
         x = torch.fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)))
