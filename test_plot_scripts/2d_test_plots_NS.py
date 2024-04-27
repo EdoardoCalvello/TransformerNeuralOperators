@@ -49,14 +49,14 @@ model = model.to(device)
 # Load the model weights from Wandb
 model.load_state_dict(checkpoint['state_dict'])
 
-model.model.set_im_size(416,32)
+model.model.set_im_size(208,16)
 
 # Load the data module
 datamodule = MetaDataModule(**config)
 datamodule.setup(stage='test')  # Call the setup method to set up the test data
 test_data_loader = datamodule.test_dataloader()  # Retrieve the test data loader
 #change the [1] depending on the sample rates
-test_sample_rate = 1
+test_sample_rate = 2
 test_data_loader = test_data_loader[test_sample_rate]
 
 # Set the model to evaluation mode
@@ -119,7 +119,7 @@ y_pred_median = predictions[median_idx]
 
  # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
  # plot the values of y_true and y_pred at the indices given by coords_y
-n_grid=250
+n_grid=416
 
 coords_x = coords_x.cpu()
 coords_y = coords_y.cpu()
@@ -171,31 +171,44 @@ y_pred_median = griddata(
 
 y_rel_diff_median = np.abs(y_pred_median - y_true_median)
 
+y_pred_x_diff_median = np.abs(y_pred_median - x_input_median)
+y_x_diff_median = np.abs(y_true_median - x_input_median)
+y_pred_x_diff_min = np.abs(y_pred_min - x_input_min)
+y_x_diff_min = np.abs(y_true_min - x_input_min)
+
 
 data_sets = {
             (1, 0): x_input_min,
-            (1, 1): y_true_min,
-            (1, 2): y_pred_min,
+            (1, 1): y_x_diff_min,
+            (1, 2): y_pred_x_diff_min,
             (1, 3): np.log10(y_rel_diff_min),
             (0, 0): x_input_median,
-            (0, 1): y_true_median,
-            (0, 2): y_pred_median,
+            (0, 1): y_x_diff_median,
+            (0, 2): y_pred_x_diff_median,
             (0, 3): np.log10(y_rel_diff_median)
         }
 
 for (i, j), data in data_sets.items():
     bounds = (-7, 1) if j == 3 else (None, None)
     im = axs[i, j].imshow(data, cmap='viridis' if j < 3 else 'inferno', vmin=bounds[0], vmax=bounds[1])
-    error_info = f"Median Relative L2 Error ({median_error:.2e})" if i == 0 else f"Maximum Relative L2 Error ({min_error:.2e})"
+    if j == 3:
+        error_info = f"Median Relative L2 Error ({median_error:.2e})" if i == 0 else f"Maximum Relative L2 Error ({min_error:.2e})"
+    else:
+        error_info = ""
     axs[i, j].set_title(
-        f"{'Input Field' if j == 0 else 'Ground Truth' if j == 1 else 'Prediction' if j == 2 else 'Pointwise Error'}\n "
+        f"{'Input Vorticity' if j == 0 else 'Difference Between Truth and Input' if j == 1 else 'Difference Between Prediction and Input' if j == 2 else 'Pointwise Absolute Error'}\n "
         f"{error_info}",
         fontsize=14
     )
+    axs[i, j].set_xticks(np.linspace(0, n_grid, num=3))
+    axs[i, j].set_xticklabels([f"${i:.0f}\pi$" for i in np.linspace(0, 2, num=3)])
+    axs[i, j].set_yticks(np.linspace(0, n_grid, num=3))
+    axs[i, j].set_yticklabels([f"${i:.0f}\pi$" for i in np.linspace(0, 2, num=3)])
 
     fig.colorbar(im, ax=axs[i, j], shrink=0.6)
 
-fig.suptitle(' Predicted Fields: Prediction vs. Truth', fontsize=30)
+fig.suptitle('Median and Maximum Relative L2 Error Samples', fontsize=30)
+fig.subplots_adjust(top=0.9)
 plt.subplots_adjust(hspace=-0.1,wspace=0.1)
 plt.savefig(f"test_error_plots_dt{test_sample_rate}.png")
 

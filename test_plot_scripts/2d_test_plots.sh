@@ -22,4 +22,4 @@ module load cuda/11.8
 # mkdir -p slurm_logs
 
 # Run your Python script with the GPU device specified (assuming your script is named 'your_script.py')
-python ../../test_plot_scripts/2d_test_plots.py --id $SLURM_ARRAY_TASK_ID
+python ../../test_plot_scripts/2d_test_plots_NS.py --id $SLURM_ARRAY_TASK_ID
