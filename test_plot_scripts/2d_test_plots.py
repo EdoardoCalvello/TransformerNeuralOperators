@@ -8,12 +8,13 @@ import torch
 from scipy.interpolate import griddata
 
 from models.SimpleEncoder.SimpleEncoder_lightning import SimpleEncoderModule
+#from models.FNO.FNO_lightning import FNOModule
 from datasets import MetaDataModule
 
 import pdb
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-checkpoint_path = '../../run_scripts/basic_darcy_debug/lightning_logs/h2mn1ud8/checkpoints/epoch=79-step=90000.ckpt'
+checkpoint_path = '../../paper_run_scripts/2d_experiments_vanilla/lightning_logs/lscfgagy/checkpoints/epoch=68-step=248400.ckpt'
 checkpoint = torch.load(checkpoint_path, map_location=device)
 
 def kernel_ft(x, coords_x):
@@ -36,27 +37,29 @@ def forward_smoothing(x, coords_x):
 
 
 api = wandb.Api()
-run = api.run('edoardo-calvello/papeer_experiments/h2mn1ud8')
+run = api.run('edoardo-calvello/2d_paper_experiments_Vanilla/lscfgagy')
 
 # Load the model parameters
 config = run.config
 # Create a dictionary of valid arguments for the model
 valid_model_args = {key: value for key, value in config.items() if key in SimpleEncoderModule.__init__.__code__.co_varnames}
+#valid_model_args = {key: value for key, value in config.items() if key in FNOModule.__init__.__code__.co_varnames}
 # Create the model using the same architecture
 model = SimpleEncoderModule(**valid_model_args)
+#model = FNOModule(**valid_model_args)
 model.first_forward = False
 model = model.to(device)
 # Load the model weights from Wandb
 model.load_state_dict(checkpoint['state_dict'])
 
-model.model.set_im_size(416,32)
+model.model.set_im_size(208,16)
 
 # Load the data module
 datamodule = MetaDataModule(**config)
 datamodule.setup(stage='test')  # Call the setup method to set up the test data
 test_data_loader = datamodule.test_dataloader()  # Retrieve the test data loader
 #change the [1] depending on the sample rates
-test_sample_rate = 1
+test_sample_rate = 2
 test_data_loader = test_data_loader[test_sample_rate]
 
 # Set the model to evaluation mode
@@ -186,18 +189,28 @@ data_sets = {
 for (i, j), data in data_sets.items():
     bounds = (-7, 1) if j == 3 else (None, None)
     im = axs[i, j].imshow(data, cmap='viridis' if j < 3 else 'inferno', vmin=bounds[0], vmax=bounds[1])
-    error_info = f"Median Relative L2 Error ({median_error:.2e})" if i == 0 else f"Maximum Relative L2 Error ({min_error:.2e})"
+    if j == 3:
+        error_info = f"Median Relative L2 Error ({median_error:.2e})" if i == 0 else f"Maximum Relative L2 Error ({min_error:.2e})"
+    else:
+        error_info = ""
     axs[i, j].set_title(
-        f"{'Input Field' if j == 0 else 'Ground Truth' if j == 1 else 'Prediction' if j == 2 else 'Pointwise Error'}\n "
+        f"{'Input Field' if j == 0 else 'Ground Truth' if j == 1 else 'Prediction' if j == 2 else 'Pointwise Absolute Error'}\n "
         f"{error_info}",
         fontsize=14
     )
 
+    axs[i, j].set_xticks(np.linspace(0, n_grid, num=3))
+    axs[i, j].set_xticklabels([f"${i}$" for i in [0, 0.5, 1]])
+    axs[i, j].set_yticks(np.linspace(0, n_grid, num=3))
+    axs[i, j].set_yticklabels([f"${i}$" for i in [0, 0.5, 1]])
+
     fig.colorbar(im, ax=axs[i, j], shrink=0.6)
 
-fig.suptitle(' Predicted Fields: Prediction vs. Truth', fontsize=30)
+
+fig.suptitle('Median and Maximum Relative L2 Error Samples', fontsize=30)
+fig.subplots_adjust(top=0.9)
 plt.subplots_adjust(hspace=-0.1,wspace=0.1)
-plt.savefig(f"test_error_plots_dt{test_sample_rate}.png")
+plt.savefig(f"test_error_plots_low__dt{test_sample_rate}.png")
 
 ############################################################################################################
 ############################################################################################################

@@ -3,7 +3,7 @@
 #SBATCH --array=0                   # Number of tasks in the array (e.g., 10 jobs)
 #SBATCH --gres=gpu:1                   # Number of GPUs to allocate per job (1 GPU per job)
 #SBATCH --partition=gpu
-#SBATCH --time=00:30:00                # Maximum runtime for each job (hh:mm:ss)
+#SBATCH --time=01:00:00                # Maximum runtime for each job (hh:mm:ss)
 #SBATCH --ntasks=1         # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1          # number of nodes
 #SBATCH --mem-per-cpu=64G           # Memory required per job
@@ -22,4 +22,4 @@ module load cuda/11.8
 # mkdir -p slurm_logs
 
 # Run your Python script with the GPU device specified (assuming your script is named 'your_script.py')
-python ../../test_plot_scripts/2d_test_plots_NS.py --id $SLURM_ARRAY_TASK_ID
+python ../../test_plot_scripts/2d_test_plots.py --id $SLURM_ARRAY_TASK_ID

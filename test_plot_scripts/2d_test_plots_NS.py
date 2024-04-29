@@ -7,13 +7,13 @@ import numpy as np
 import torch
 from scipy.interpolate import griddata
 
-from models.SimpleEncoder.SimpleEncoder_lightning import SimpleEncoderModule
+from models.FANO.FANO_lightning import SimpleEncoderModule
 from datasets import MetaDataModule
 
 import pdb
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-checkpoint_path = '../../run_scripts/basic_darcy_debug/lightning_logs/h2mn1ud8/checkpoints/epoch=79-step=90000.ckpt'
+checkpoint_path = '../../paper_run_scripts/2d_experiments_FANO/lightning_logs/4kahzdf3/checkpoints/epoch=79-step=288000.ckpt'
 checkpoint = torch.load(checkpoint_path, map_location=device)
 
 def kernel_ft(x, coords_x):
@@ -36,7 +36,7 @@ def forward_smoothing(x, coords_x):
 
 
 api = wandb.Api()
-run = api.run('edoardo-calvello/papeer_experiments/h2mn1ud8')
+run = api.run('edoardo-calvello/2d_paper_experiments_FANO/4kahzdf3')
 
 # Load the model parameters
 config = run.config
