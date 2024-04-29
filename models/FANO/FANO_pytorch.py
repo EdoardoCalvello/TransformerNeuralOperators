@@ -82,7 +82,7 @@ class SimpleEncoder(torch.nn.Module):
                 self.size_row = self.im_size
                 self.size_col = self.im_size
                 self.linear_out = nn.Linear(d_model,1)
-                #self.smoothing = SpectralConv2d(1,1,64,64)
+                self.smoothing = SpectralConv2d(1,1,64,64)
             self.num_patches = (self.size_row*self.size_col)//(self.patch_size**2)
 
         else:
@@ -260,9 +260,9 @@ class SimpleEncoder(torch.nn.Module):
         x = x.squeeze(3)
 
         
-        #x = x.unsqueeze(1)
-        #x = x + self.smoothing(x)
-        #x = x.squeeze(1)
+        x = x.unsqueeze(1)
+        x = x + self.smoothing(x)
+        x = x.squeeze(1)
         
 
         #learning residual

@@ -87,11 +87,11 @@ class FNO(torch.nn.Module):
         self.patch_size = new_patch_size
         self.im_size = new_im_size
         self.size_row = new_im_size
-        self.size_col = new_im_size //2 if self.fourier else new_im_size
+        self.size_col = new_im_size
         self.num_patches = (self.size_row*self.size_col)//(self.patch_size**2)
 
-        for encoder_layer in self.encoder.layers:
-            encoder_layer.self_attn.scaled_dot_product_attention.scale[0]=torch.tensor(new_im_size**2)
+        #for encoder_layer in self.encoder.layers:
+            #encoder_layer.self_attn.scaled_dot_product_attention.scale[0]=torch.tensor(new_im_size**2)
             #encoder_layer.self_attn.im_size=new_im_size
 
 
