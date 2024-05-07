@@ -14,17 +14,18 @@ class ScaledDotProductAttention(nn.Module):
 
     def custom_softmax(self, x, coords=None, dim=-1):
 
-        exp_x = torch.exp(x - x.max(dim=dim, keepdim=True)[0])
+        #exp_x = torch.exp(x - x.max(dim=dim, keepdim=True)[0])
+        exp_x = torch.exp(x)
         #reweighting of exp_x along seq_len dimension
         if coords is not None:
-            softmax_x = exp_x / (coords*exp_x[...,1:]).sum(dim=dim, keepdim=True)
+            softmax_x = exp_x / (0.5*coords*(exp_x[...,1:]+exp_x[...,:-1])).sum(dim=dim, keepdim=True)
         else:
             softmax_x = exp_x / exp_x.sum(dim=dim, keepdim=True)
         return softmax_x
 
     def forward(self, query, key, value, coords, key_padding_mask=None):
         # Custom logic for attention calculation
-        
+
         scores = torch.einsum("bhld,bhsd->bhls", query, key) / self.scale
 
         #makes sure that if domain_dim is not 1, then coords is handled differently
@@ -40,25 +41,28 @@ class ScaledDotProductAttention(nn.Module):
 
         attention_weights = self.custom_softmax(scores, coords=coords, dim=-1)
         attention_weights = self.dropout(attention_weights)
-        
+
         #reweighting of value along seq_len dimension
         if coords is not None:
-            value = coords.permute(0,1,3,2)*value[...,1:,:]
-            output = torch.einsum("bhls,bhsd->bhld", attention_weights[...,1:], value)
+            value1 = coords.permute(0,1,3,2)*value[...,1:,:]
+            output1 = torch.einsum("bhls,bhsd->bhld", attention_weights[...,1:], value1)
+            value2 = coords.permute(0,1,3,2)*value[...,:-1,:]
+            output2 = torch.einsum("bhls,bhsd->bhld", attention_weights[...,:-1], value2)
+            output = 0.5*(output1 + output2)
         else:
             output = torch.einsum("bhls,bhsd->bhld", attention_weights, value)
-       
+
         return output
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, nhead, dropout=0.1):
         super(MultiHeadAttention, self).__init__()
         assert d_model % nhead == 0, "d_model must be divisible by nhead"
-        
+
         self.d_model = d_model
         self.nhead = nhead
         self.d_k = d_model // nhead
-        
+
         self.W_q = nn.Linear(d_model, nhead*self.d_k)
         self.W_k = nn.Linear(d_model, nhead*self.d_k)
         self.W_v = nn.Linear(d_model, nhead*self.d_k)
@@ -69,23 +73,23 @@ class MultiHeadAttention(nn.Module):
         #batch_size, seq_length, d_model = x.size()
         batch_size = x.shape[0]
         return x.view(batch_size, -1, self.nhead, self.d_k).transpose(1, 2)
-        
+
     def combine_heads(self, x):
         #batch_size, nhead, seq_length, d_k = x.size()
         batch_size = x.shape[0]
         return x.transpose(1, 2).contiguous().view(batch_size, -1, self.nhead * self.d_k)
-        
+
     def forward(self, x, coords_x, mask=None):
 
         Q = self.split_heads(self.W_q(x))
         K = self.split_heads(self.W_k(x))
         V = self.split_heads(self.W_v(x))
-        
+
         attn_output = self.scaled_dot_product_attention(Q, K, V, coords_x, mask)
         output = self.W_o(self.combine_heads(attn_output))
         return output
-    
-    
+
+
 class FeedForward(nn.Module):
     def __init__(self, d_model, dim_feedforward, activation):
         super(FeedForward, self).__init__()
@@ -95,7 +99,7 @@ class FeedForward(nn.Module):
 
     def forward(self, x):
         return self.fc2(self.activation(self.fc1(x)))
-    
+
 
 class TransformerEncoderLayer(nn.Module):
     def __init__(self, d_model, nhead, dropout=0.1, activation="relu", norm_first=True, do_layer_norm=True, dim_feedforward=2048, batch_first=True):
@@ -105,14 +109,14 @@ class TransformerEncoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
-        
+
     def forward(self, x, coords_x, mask=None):
         attn_output = self.self_attn(x, coords_x)
         x = self.norm1(x + self.dropout(attn_output))
         ff_output = self.feed_forward(x)
         x = self.norm2(x + self.dropout(ff_output))
         return x
-    
+
 
 class TransformerEncoder(nn.Module):
     def __init__(self, encoder_layer, num_layers=1):
@@ -136,7 +140,7 @@ class SpectralConv2d(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2):
         super(SpectralConv2d, self).__init__()
         """
-        2D Fourier layer. It does FFT, linear transform, and Inverse FFT.    
+        2D Fourier layer. It does FFT, linear transform, and Inverse FFT.
         """
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -213,13 +217,13 @@ class ScaledDotProductAttention_Operator(nn.Module):
     def forward(self, query, key, value, key_padding_mask=None):
         # Custom logic for attention calculation
         scores = torch.einsum("bnpxyd,bnqxyd->bnpq", query, key) / self.scale
-    
+
         if key_padding_mask is not None:
             scores = scores.masked_fill(key_padding_mask.unsqueeze(1).unsqueeze(2), float('-inf'))
 
         attention_weights = F.softmax(scores, dim=-1)
         attention_weights = self.dropout(attention_weights)
-        
+
         output = torch.einsum("bnpq,bnqxyd->bnpxyd", attention_weights, value)
         output = output.permute(0,2,3,4,5,1)
 
@@ -291,7 +295,7 @@ class TransformerEncoder_Operator(nn.Module):
         for layer in self.layers:
             x = layer(x, mask=mask)
         return x
-    
+
 
 ###############################################################################################################
 ###############################################################################################################
@@ -305,7 +309,7 @@ class SpectralConv2d_in(nn.Module):
         super(SpectralConv2d_in, self).__init__()
 
         """
-        2D Fourier layer. It does FFT, linear transform, and Inverse FFT.    
+        2D Fourier layer. It does FFT, linear transform, and Inverse FFT.
         """
 
         self.in_channels = in_channels
@@ -338,17 +342,17 @@ class SpectralConv2d_in(nn.Module):
         #Return to physical space
         x = torch.fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)))
         return x
-    
+
 
 class MultiheadAttention_ViT(nn.Module):
     def __init__(self, d_model, nhead, im_size, dropout=0.1):
         super(MultiheadAttention_ViT, self).__init__()
         assert d_model % nhead == 0, "d_model must be divisible by nhead"
-        
+
         self.d_model = d_model
         self.nhead = nhead
         self.d_k = d_model // nhead
-        
+
         self.W_q = nn.Linear(d_model, nhead*self.d_k)
         self.W_k = nn.Linear(d_model, nhead*self.d_k)
         self.W_v = nn.Linear(d_model, nhead*self.d_k)
@@ -358,22 +362,22 @@ class MultiheadAttention_ViT(nn.Module):
     def split_heads(self, x):
         batch, num_patches, patch_size, patch_size, nhead_times_d_K = x.size()
         return x.view(batch, num_patches, patch_size, patch_size, self.d_k, self.nhead).permute(0,5,1,2,3,4)
-        
+
     def combine_heads(self, x):
         batch, num_patches, patch_size, patch_size, d_K, num_heads = x.size()
         return x.reshape(batch, num_patches, patch_size, patch_size, self.nhead*self.d_k)
-        
+
     def forward(self, x, key_padding_mask=None):
 
         Q = self.split_heads(self.W_q(x))
         K = self.split_heads(self.W_k(x))
         V = self.split_heads(self.W_v(x))
         # query, key, and value are of shape (batch, nhead, num_patches,x,y , d_K)
-        
+
         attn_output = self.scaled_dot_product_attention(Q, K, V, key_padding_mask)
         output = self.W_o(self.combine_heads(attn_output))
         return output
-    
+
 class ScaledDotProductAttention_ViT(nn.Module):
     def __init__(self, d_k, im_size, dropout=0.1):
         super(ScaledDotProductAttention_ViT, self).__init__()
@@ -395,7 +399,7 @@ class ScaledDotProductAttention_ViT(nn.Module):
         output = output.permute(0,2,3,4,5,1)
 
         return output
-    
+
 class TransformerEncoderLayer_ViT(nn.Module):#
 
     def __init__(self, d_model, nhead, dropout=0.1, activation="relu", norm_first=True, do_layer_norm=True, dim_feedforward=2048, modes=None, patch_size=1, im_size=64, batch_first=True):
@@ -455,7 +459,7 @@ class TransformerEncoderLayer_ViT(nn.Module):#
             x = self.norm2(x)
 
         return x
-    
+
 
 ###############################################################################################################
 ###############################################################################################################
@@ -468,7 +472,7 @@ class SpectralConv2d_Attention(nn.Module):
     def __init__(self, in_channels, out_channels, modes1, modes2, nhead):
         super(SpectralConv2d_Attention, self).__init__()
         """
-        2D Fourier layer. It does FFT, linear transform, and Inverse FFT.    
+        2D Fourier layer. It does FFT, linear transform, and Inverse FFT.
         """
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -483,7 +487,7 @@ class SpectralConv2d_Attention(nn.Module):
     def compl_mul2d(self, input, weights):
         # (batch, num_patches, in_channel, x,y ), (in_channel, out_channel, x,y, nhead) -> (batch, num_patches, out_channel, x,y, nhead)
         return torch.einsum("bnixy,ioxyh->bnoxyh", input, weights)
-    
+
     def forward(self, x):
         batchsize = x.shape[0]
         num_patches = x.shape[1]
@@ -504,7 +508,7 @@ class SpectralConv2d_Attention(nn.Module):
         x = torch.permute(x, (0,1,3,4,2,5))
         #x is of shape (batch, num_patches, x, y, d_model, nhead)
         return x
-    
+
 class MultiheadAttention_Conv(nn.Module):
 
     def __init__(self, d_model, nhead, modes1, modes2, im_size, dropout=0.1):
@@ -518,7 +522,7 @@ class MultiheadAttention_Conv(nn.Module):
         self.value_operator = SpectralConv2d_Attention(d_model, self.d_k, modes1, modes2, nhead)
 
         self.scaled_dot_product_attention = ScaledDotProductAttention_Conv(d_model, im_size, dropout=dropout)
-        
+
         self.out_linear = nn.Linear(nhead*self.d_k, d_model)
         self.dropout = nn.Dropout(dropout)
 
@@ -530,7 +534,7 @@ class MultiheadAttention_Conv(nn.Module):
         value = self.value_operator(x).permute(0,5,1,2,3,4)
         # query, key, and value are of shape (batch, nhead, num_patches,x,y , d_model)
         # Scaled Dot Product Attention
-        
+
         attention_output, _ = self.scaled_dot_product_attention(query, key, value, key_padding_mask=key_padding_mask)
 
         ######
@@ -540,7 +544,7 @@ class MultiheadAttention_Conv(nn.Module):
         output = self.out_linear(attention_output)
         output = self.dropout(output)
         return output
-    
+
 class ScaledDotProductAttention_Conv(nn.Module):
 
     def __init__(self, d_model, im_size, dropout=0.1):
@@ -559,7 +563,7 @@ class ScaledDotProductAttention_Conv(nn.Module):
         output = torch.einsum("bnpq,bnqxyd->bnpxyd", attention_weights, value)
         output = output.permute(0,2,3,4,5,1)
         return output, attention_weights
-    
+
 class TransformerEncoderLayer_Conv(nn.Module):#
 
     def __init__(self, d_model, nhead, dropout=0.1, activation="relu", norm_first=True, do_layer_norm=True, dim_feedforward=2048, modes=None, patch_size=1, im_size=64, batch_first=True):
@@ -615,7 +619,7 @@ class TransformerEncoderLayer_Conv(nn.Module):#
             x = self.norm2(x)
 
         return x
-    
+
 
 ###############################################################################################################
 ###############################################################################################################
@@ -692,7 +696,7 @@ class TransformerEncoderLayer_Conv_E(nn.Module):#
         x = x.reshape(x.shape[0],self.d_model,self.size_row,self.size_col)
 
         return x
-    
+
     def forward(self, x, mask=None):
         if self.norm_first:
             x = self.norm1(x)
