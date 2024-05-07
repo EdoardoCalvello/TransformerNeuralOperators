@@ -245,7 +245,9 @@ class ControlledODE(DynSys):
         # Generate a tensor of size 5 with Gaussian random variables
         self.xi = torch.randn(size, 5)
         # Generate a tensor of size 5 with integers uniformly distributed in [1, 5]
-        self.freqs = torch.randint(low=1, high=6, size=(size,5))
+        #self.freqs = torch.randint(low=1, high=6, size=(size,5))
+        self.freqs = torch.randint(low=1, high=6, size=(1,5)).repeat(size,1)
+        #
         self.decay = torch.linspace(1/5, 1, steps=5).reshape(1,-1).repeat(size,1)
 
 
