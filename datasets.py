@@ -112,7 +112,7 @@ class DynSys(object):
         '''
         raise NotImplementedError
 
-    def solve(self, N_traj, T, dt):
+    def solve(self, N_traj, T, dt, test=False):
         '''
         Solve the dynamical system using an ODE solver.
 
