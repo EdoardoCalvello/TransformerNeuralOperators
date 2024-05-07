@@ -112,8 +112,14 @@ class SimpleEncoder(torch.nn.Module):
             # x = x.permute(1,0,2) # (seq_len, batch_size, dim_state)
             # reshape to make sure we have dim (batch,1,dim_output)
             initial_cond = y[:, 0:1, :].permute(0, 2, 1)  # (batch_size, dim_state, 1)
+            #flip to make sure that x_0 is given as the dim_output entry of the seq_len dimension
+            initial_cond = torch.flip(initial_cond, dims=[-2])
             # (batch_size, seq_len+output_dim, dim_state)
             x = torch.cat((initial_cond, x), dim=1)
+
+            #now make sure coords has the appropriate values
+            initial_cond_coords = torch.zeros((self.output_dim,1,1)).to(x)
+            coords_x = torch.cat((initial_cond_coords,coords_x),dim=0)
 
         if self.append_position_to_x:
             append = coords_x.permute(2,0,1).repeat(x.shape[0],1,1)
@@ -124,7 +130,8 @@ class SimpleEncoder(torch.nn.Module):
 
         # times = torch.linspace(0, 1, x.shape[1]).unsqueeze(1)
         # can use first time because currently all batches share the same time discretization
-        x = self.apply_positional_encoding(x, coords_x) # coords_x is "time" for 1D case
+        if self.use_positional_encoding:
+            x = self.apply_positional_encoding(x, coords_x) # coords_x is "time" for 1D case
 
         if self.use_transformer:
             x = self.encoder(x)  # (batch_size, seq_len, dim_state)

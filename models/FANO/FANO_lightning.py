@@ -61,8 +61,8 @@ class SimpleEncoderModule(pl.LightningModule):
         self.model = SimpleEncoder(input_dim=input_dim,
                                     output_dim=output_dim,
                                     domain_dim=domain_dim,
-                                    d_model=d_model, 
-                                    nhead=nhead, 
+                                    d_model=d_model,
+                                    nhead=nhead,
                                     num_layers=num_layers,
                                     max_sequence_length=max_sequence_length,
                                     do_layer_norm=do_layer_norm,
@@ -80,7 +80,7 @@ class SimpleEncoderModule(pl.LightningModule):
                                     dropout=dropout,
                                     norm_first=norm_first,
                                     dim_feedforward=dim_feedforward)
-        
+
         self.test_losses = {}
 
     def forward(self, x, y, coords_x, coords_y, x_train_fourier_normalizer):
@@ -93,7 +93,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         if self.use_y_forward:
             return self.model(x, y=y, coords_x=coords_x, x_train_fourier_normalizer= x_train_fourier_normalizer)
-        else: 
+        else:
             return self.model(x, y=None, coords_x=coords_x, x_train_fourier_normalizer=x_train_fourier_normalizer)
 
     def training_step(self, batch, batch_idx):
@@ -103,7 +103,7 @@ class SimpleEncoderModule(pl.LightningModule):
         #loss = torch.mean(torch.mean(torch.mean(((y_hat.real- y.real)**2 + (y_hat.imag - y.imag)**2), dim=1),dim=1))
         self.log("loss/train/mse", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
         #loss_sup = torch.mean(torch.mean(torch.mean(((y_hat.real- y.real)**2 + (y_hat.imag - y.imag)**2), dim=1),dim=1))
@@ -124,7 +124,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         self.log("loss/train/rel_L2", rel_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         dy_hat_dx = torch.gradient(y_hat,dim=2)[0]
         dy_hat_dy = torch.gradient(y_hat,dim=1)[0]
         dy_dx = torch.gradient(y,dim=2)[0]
@@ -134,14 +134,14 @@ class SimpleEncoderModule(pl.LightningModule):
 
         rel_H1_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1))+grad_diff,
                                             torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))+grad_y))
-        
+
         self.log("loss/train/rel_H1", rel_H1_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Train')
 
-        return rel_loss
+        return rel_H1_loss
 
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
@@ -187,7 +187,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         #Relative L2 loss
 
-        
+
         rel_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1)),
                                         torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))))
         '''
@@ -200,7 +200,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         self.log("loss/val/rel_L2", rel_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         dy_hat_dx = torch.gradient(y_hat,dim=2)[0]
         dy_hat_dy = torch.gradient(y_hat,dim=1)[0]
         dy_dx = torch.gradient(y,dim=2)[0]
@@ -210,14 +210,14 @@ class SimpleEncoderModule(pl.LightningModule):
 
         rel_H1_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1))+grad_diff,
                                             torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))+grad_y))
-        
+
         self.log("loss/val/rel_H1", rel_H1_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
 
 
         if batch_idx == 0:
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Val')
-        return rel_loss
+        return rel_H1_loss
 
     def plot_positional_encoding(self, x, coords):
         pe = self.model.positional_encoding(x, coords)
@@ -312,12 +312,12 @@ class SimpleEncoderModule(pl.LightningModule):
     def batch_figs_2D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx, n_grid=250):
 
         if self.fourier:
-           
+
             coords_x1, coords_x2 = 1/coords_x[0,0,:,:], 1/coords_x[0,1,:,:]
             coords_y1, coords_y2 = 1/coords_y[0,0,:,:], 1/coords_y[0,1,:,:]
 
             half_size = coords_x1.shape[0]//2
-  
+
             coords_x[:,0,...] =  np.roll(coords_x1, half_size, axis=0)
             coords_x[:,1,...] =  np.roll(coords_x2, half_size, axis=1)
             coords_y[:,0,...] =  np.roll(coords_y1, half_size, axis=0)
@@ -552,12 +552,12 @@ class SimpleEncoderModule(pl.LightningModule):
         n_grid=250
 
         if self.fourier:
-           
+
             coords_x1_min, coords_x2_min = 1/coords_x_min[0,:,:], 1/coords_x_min[1,:,:]
             coords_y1_min, coords_y2_min = 1/coords_y_min[0,:,:], 1/coords_y_min[1,:,:]
 
             half_size = coords_x1_min.shape[0]//2
-  
+
             coords_x_min[0,...] =  np.roll(coords_x1_min, half_size, axis=0)
             coords_x_min[1,...] =  np.roll(coords_x2_min, half_size, axis=1)
             coords_y_min[0,...] =  np.roll(coords_y1_min, half_size, axis=0)
@@ -567,7 +567,7 @@ class SimpleEncoderModule(pl.LightningModule):
             coords_y1_median, coords_y2_median = 1/coords_y_median[0,:,:], 1/coords_y_median[1,:,:]
 
             half_size = coords_x1_median.shape[0]//2
-  
+
             coords_x_median[0,...] =  np.roll(coords_x1_median, half_size, axis=0)
             coords_x_median[1,...] =  np.roll(coords_x2_median, half_size, axis=1)
             coords_y_median[0,...] =  np.roll(coords_y1_median, half_size, axis=0)
@@ -711,17 +711,17 @@ class SimpleEncoderModule(pl.LightningModule):
         loss = F.mse_loss(y_hat, y)
         self.log(f"loss/test/mse/dt{dt}", loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         # Sup norm loss
         loss_sup  = torch.max(torch.abs(y_hat - y))
         self.log(f"loss/test/sup/dt{dt}", loss_sup, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         rel_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1)),
                                         torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))))
         self.log(f"loss/test/rel_L2/dt{dt}", rel_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         dy_hat_dx = torch.gradient(y_hat, dim=2)[0]
         dy_hat_dy = torch.gradient(y_hat, dim=1)[0]
         dy_dx = torch.gradient(y, dim=2)[0]
@@ -731,14 +731,14 @@ class SimpleEncoderModule(pl.LightningModule):
 
         rel_H1_loss = torch.mean(torch.div(torch.sqrt(torch.mean(torch.mean((y_hat -y)**2, dim=1),dim=1))+grad_diff,
                                             torch.sqrt(torch.mean(torch.mean(y**2, dim=1),dim=1))+grad_y))
-        
+
         self.log("loss/test/rel_H1/dt{dt}", rel_H1_loss, on_step=False,
                  on_epoch=True, prog_bar=True)
-        
+
         # Save the test losses and corresponding indices for each DataLoader index
         if dataloader_idx not in self.test_losses:
             self.test_losses[dataloader_idx] = {'losses': [], 'indices': [], 'prediction':[]}
-        
+
         for i in range(x.size(0)):
 
             dy_hat_dx = torch.gradient(y_hat[i],dim=1)[0]
@@ -750,7 +750,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
             #loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i] -y[i])**2, dim=1),dim=0))+grad_diff,
             #                                torch.sqrt(torch.mean(torch.mean(y[i]**2, dim=1),dim=0))+grad_y)
-        
+
             loss_sample = torch.div(torch.sqrt(torch.mean(torch.mean((y_hat[i:i+1] -y[i:i+1])**2, dim=1),dim=1)),
                                         torch.sqrt(torch.mean(torch.mean(y[i:i+1]**2, dim=1),dim=1)))
 
@@ -760,7 +760,7 @@ class SimpleEncoderModule(pl.LightningModule):
             self.test_losses[dataloader_idx]['prediction'].append(y_hat[i:i+1])
 
         return {}
-    
+
     def on_test_epoch_end(self):
 
         for dataloader_idx, dataloader_losses in self.test_losses.items():
@@ -779,7 +779,7 @@ class SimpleEncoderModule(pl.LightningModule):
             test_dataloader = self.trainer.datamodule.test_dataloader()[dt]
             resolution = self.trainer.datamodule.test_im_sizes[dataloader_idx]
 
-            # Retrieve the samples using indices, 
+            # Retrieve the samples using indices,
             ###################################################
             ###################################################
             # !!!!!terrible code!!!!!
@@ -796,7 +796,7 @@ class SimpleEncoderModule(pl.LightningModule):
             ###################################################
 
             # Now you can use median_sample and worst_sample to plot relevant information or perform further analysis
-    
+
             self.make_test_figs(median_sample, worst_sample, tag=f'{resolution}x{resolution}')
 
     def configure_optimizers(self):

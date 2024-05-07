@@ -83,7 +83,7 @@ class Runner:
                                  'dyn_sys_name': dyn_sys_name,
                                  'patch': patch, # used for 2d spatial, but not in timeseries
                                  'patch_size': patch_size, # used for 2d spatial, but not in timeseries
-                                 'fourier': fourier, 
+                                 'fourier': fourier,
                                  'input_inds': input_inds,
                                  'output_inds': output_inds,
                                  }
@@ -115,7 +115,7 @@ class Runner:
                                   # add extra sequence to allow for inclusion of output I.C.
                                   'max_sequence_length': 1 + int(T/min(test_sample_rates)) + len(output_inds),
                                   }
-        
+
         self.trainer_hyperparams = {'max_epochs': max_epochs,
                                     'log_every_n_steps': log_every_n_steps,
                                     'gradient_clip_val': gradient_clip_val,
@@ -123,7 +123,7 @@ class Runner:
                                     'overfit_batches': overfit_batches,
                                     'deterministic': deterministic,
                                     }
-        
+
         self.other_hyperparams = {'seed': seed, 'tune_initial_lr': tune_initial_lr,
                                   }
 
@@ -156,7 +156,7 @@ class Runner:
 
         # Create an early stopping callback
         early_stopping = EarlyStopping(monitor='loss/val/mse', patience=20, mode='min', verbose=True)
-        
+
         checkpoint_dir = 'checkpoints'
 
         # aggregate all callbacks
@@ -165,14 +165,14 @@ class Runner:
 
 
         # Initialize the trainer
-        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-                              **self.trainer_hyperparams)
+        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+        #                      **self.trainer_hyperparams)
         #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
         #                     **self.trainer_hyperparams, plugins="deepspeed_stage_2", precision=16, devices=2)
         #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
         #                      **self.trainer_hyperparams, accelerator='gpu', devices=4)
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=4)
+        trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+                        **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=2)
 
 
         # Tune the model
