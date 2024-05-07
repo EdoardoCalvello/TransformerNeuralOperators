@@ -124,13 +124,20 @@ class DynSys(object):
         Returns:
             tuple: A tuple containing the trajectories and the corresponding time points.
         '''
-        #times = torch.arange(0, T, dt)
-        ####
-        torch.manual_seed(0)
-        gaussian_vector = torch.randn(int(T/dt))
-        sorted_vector, _ = torch.sort(gaussian_vector)
-        times = (sorted_vector - sorted_vector.min()) / (sorted_vector.max() - sorted_vector.min()) * T
-        ####
+        times = torch.arange(0, T, dt)
+        '''
+        if test==True:
+            split_index = len(times) // 2
+            first_half = times[:split_index]
+            second_half = times[split_index:len(times):2]
+            result = torch.cat((first_half, second_half), dim=0)
+        '''
+            ####
+            #torch.manual_seed(0)
+            #gaussian_vector = torch.randn(int(T/dt))
+            #sorted_vector, _ = torch.sort(gaussian_vector)
+            #times = (sorted_vector - sorted_vector.min()) / (sorted_vector.max() - sorted_vector.min()) * T
+            ####
         xyz0 = self.get_inits(N_traj)
         xyz = odeint(self.rhs, xyz0, times)
         # Size, Seq_len, batch_size, input_dim
@@ -217,8 +224,8 @@ class ControlledODE(DynSys):
         '''
         u, udot, v = x[:, 0:1], x[:, 1:2], x[:, 2:3]
 
-        du = self.freq * torch.cos(self.freq * t)
-        ddu = - self.freq**2 * torch.sin(self.freq * t)
+        du = torch.sum(np.pi * self.xi * self.freqs * torch.cos(np.pi * self.freqs * t),dim=1).reshape(-1,1)
+        ddu = torch.sum(- np.pi**2 * self.xi**2 * self.freqs**2 * torch.cos(np.pi * self.freqs * t), dim=1).reshape(-1,1)
         dv = torch.sin(v) * udot
         return torch.cat([du, ddu, dv], dim=1)
 
@@ -233,10 +240,17 @@ class ControlledODE(DynSys):
             torch.Tensor: The initial conditions.
 
         '''
-        self.freq = torch.empty(size, 1).uniform_(self.freq_low, self.freq_high)
+        #self.freq = torch.empty(size, 1).uniform_(self.freq_low, self.freq_high)
+
+        # Generate a tensor of size 5 with Gaussian random variables
+        self.xi = torch.randn(size, 5)
+        # Generate a tensor of size 5 with integers uniformly distributed in [1, 5]
+        self.freqs = torch.randint(low=1, high=6, size=(size,5))
+        self.decay = torch.linspace(1/5, 1, steps=5).reshape(1,-1).repeat(size,1)
+
 
         u0 = torch.zeros(size, 1)
-        udot0 = self.freq
+        udot0 = torch.sum(np.pi * self.freqs * self.xi * self.decay, dim =1).reshape(-1,1)
         v0 = torch.ones(size, 1)
 
         xyz0 = torch.cat([u0, udot0, v0], dim=1)
@@ -257,7 +271,7 @@ class Lorenz63(DynSys):
         self.sigma = sigma
         self.rho = rho
         self.beta = beta
-    
+
     def rhs(self, t, x):
         """
         Computes the right-hand side of the Lorenz63 system.
@@ -274,7 +288,7 @@ class Lorenz63(DynSys):
         dy = x * (self.rho - z) - y
         dz = x * y - self.beta * z
         return torch.cat([dx, dy, dz], dim=1)
-    
+
     def get_inits(self, size):
         """
         Generates random initial conditions for the Lorenz63 system.
@@ -306,7 +320,7 @@ class Rossler(DynSys):
         self.a = a
         self.b = b
         self.c = c
-    
+
     def rhs(self, t, x):
         """
         Compute the right-hand side of the Rossler system.
@@ -323,7 +337,7 @@ class Rossler(DynSys):
         dy = x + self.a * y
         dz = self.b + z * (x - self.c)
         return torch.cat([dx, dy, dz], dim=1)
-    
+
     def get_inits(self, size):
         """
         Generate initial states for the Rossler system.
@@ -343,7 +357,7 @@ class Rossler(DynSys):
 class DynamicsDataset(Dataset):
     def __init__(self, size=1000, T=1, sample_rate=0.01, params={},
                  dyn_sys_name='Lorenz63',
-                 input_inds=[1], output_inds=[-1],
+                 input_inds=[1], output_inds=[-1], test=False,
                  **kwargs):
         """
         Initialize a DynamicsDataset object.
@@ -364,15 +378,16 @@ class DynamicsDataset(Dataset):
         self.dynsys = load_dyn_sys_class(dyn_sys_name)(**params)
         self.input_inds = input_inds
         self.output_inds = output_inds
+        self.test = test
 
         self.generate_data()
-    
+
     def generate_data(self):
         """
         Generate the input and output data for the dataset.
         """
         # Seq_len, Size (N_traj), state_dim
-        xyz, times = self.dynsys.solve(N_traj=self.size, T=self.T, dt=self.sample_rate)
+        xyz, times = self.dynsys.solve(N_traj=self.size, T=self.T, dt=self.sample_rate, test=self.test)
 
         # use traj from the 1st component of L63 as input
         self.x = xyz[:, :, self.input_inds].permute(1, 0, 2)
@@ -505,7 +520,8 @@ class DynamicsDataModule(pl.LightningDataModule):
                                             params=self.params,
                                             dyn_sys_name=self.dyn_sys_name,
                                             input_inds=self.input_inds,
-                                            output_inds=self.output_inds)
+                                            output_inds=self.output_inds,
+                                            test=True)
 
     def train_dataloader(self):
         """
@@ -597,7 +613,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
 
                 #divide into train test and validation datasets
                 # Get the total number of samples
-                total_samples = f['x'].shape[2]  
+                total_samples = f['x'].shape[2]
                 # Create indices for shuffling
                 indices = np.arange(total_samples)
                 np.random.seed(self.random_state)  # Set a seed for reproducibility
@@ -623,13 +639,13 @@ class Spatial2dDataModule(pl.LightningDataModule):
         self.x_train, self.y_train, self.active_coordinates_x, self.active_coordinates_y = self.sample(x_train, y_train, self.train_sample_stride)
         self.x_val, self.y_val, _, _ = self.sample(x_val, y_val, self.train_sample_stride)
 
-        
+
         #normalize fourier transform by mean and std of fourier transform of training data
         if self.fourier:
             self.x_train_fourier_normalizer = FourierNormalizer(self.x_train)
         else:
             self.x_train_fourier_normalizer = 0
-        
+
         #delete if uncomment above
         #self.x_train_fourier_normalizer = 0
 
@@ -638,7 +654,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
         self.active_coordinates_x_test, self.active_coordinates_y_test = {}, {}
 
         if self.patch or self.fourier:
-            #for stride in self.test_sample_rates: if stride is 1, then we just use x_test and y_test, if stride is 2 then use self.dyn_sys_name+'_half' if 
+            #for stride in self.test_sample_rates: if stride is 1, then we just use x_test and y_test, if stride is 2 then use self.dyn_sys_name+'_half' if
             #stride is 0.5 then use self.dyn_sys_name+'_double'
 
             if self.dyn_sys_name == 'NavierStokes':
@@ -651,7 +667,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
                         file = torch.load(fname).numpy()
                         x_test_half, y_test_half = file[:,:,:,0], file[:,:,:,1]
                         self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_half, y_test_half, stride, test=True)
-                    elif stride == 0.5:                    
+                    elif stride == 0.5:
                         fname = load_dyn_sys_class(self.dyn_sys_name+'_double')
                         file = torch.load(fname).numpy()
                         x_test_double, y_test_double = file[:,:,:,0], file[:,:,:,1]
@@ -666,7 +682,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
                         file = torch.load(fname).numpy()
                         x_test_midlow, y_test_midlow = file[:,:,:,0], file[:,:,:,1]
                         self.x_test[stride], self.y_test[stride], self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride] = self.sample(x_test_midlow, y_test_midlow, stride, test=True)
-                    
+
 
 
             else:
@@ -750,7 +766,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
         # Assign train/val datasets for use in dataloaders
         self.train = Spatial2dDataset(self.x_train, self.y_train,
                                       self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer)
-        
+
         self.val = Spatial2dDataset(self.x_val, self.y_val,
                             self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer,
                             x_normalizer=self.train.x_normalizer,
@@ -760,7 +776,7 @@ class Spatial2dDataModule(pl.LightningDataModule):
         self.test = {}
         for stride in self.test_sample_rates:
             self.test[stride] = Spatial2dDataset(self.x_test[stride], self.y_test[stride],
-                                    self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride], 
+                                    self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride],
                                     self.x_train_fourier_normalizer,
                                     x_normalizer=self.train.x_normalizer,
                                     y_normalizer=self.train.y_normalizer,
@@ -825,6 +841,3 @@ class Spatial2dDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.x[idx], self.y[idx], self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer
-    
-
-         
