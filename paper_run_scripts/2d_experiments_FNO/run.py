@@ -25,7 +25,7 @@ exp_dict = {
     'test_im_sizes': [[832,624,416,312,208]],
     'test_patch_sizes': [[64,48,32,24,16]],
     'batch_size': [8],
-    'dyn_sys_name': ['darcy_high_res','darcy_discontinuous'],
+    'dyn_sys_name': ['darcy_discontinuous'],
     'patch': [True],
     # optimizer settings
     'learning_rate': [1e-3,1e-4],
@@ -38,7 +38,7 @@ exp_dict = {
     # model settings (modest model size for debugging)
     'modes': [[12,12]],
     'im_size': [416],
-    'd_model': [128],
+    'd_model': [64,96],
     'num_layers': [4],
     'activation': ['gelu'],
     'gradient_clip_val':[None] #or 10.0 whenever want to use

@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=darcy_ns        # Name of the job
-#SBATCH --array=0-3                   # Number of tasks in the array (e.g., 10 jobs)
-#SBATCH --gres=gpu:1                   # Number of GPUs to allocate per job (1 GPU per job)
+#SBATCH --job-name=KF_F        # Name of the job
+#SBATCH --array=0-5                   # Number of tasks in the array (e.g., 10 jobs)
+#SBATCH --gres=gpu:2                   # Number of GPUs to allocate per job (1 GPU per job)
 #SBATCH --partition=gpu
 #SBATCH --time=80:00:00                # Maximum runtime for each job (hh:mm:ss)
 #SBATCH --ntasks=1         # number of processor cores (i.e. tasks)
