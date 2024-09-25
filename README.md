@@ -1,4 +1,4 @@
-# Transformers for Lagrangian Data Assimilation
+# Transformer Neural Operators
 Build transformer-based architectures for performing data assimilation tasks
 
 # To build up a conda environment, I did:
