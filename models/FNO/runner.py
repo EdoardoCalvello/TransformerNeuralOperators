@@ -8,6 +8,9 @@ from pytorch_lightning.tuner import Tuner
 
 # Import custom modules
 from datasets import MetaDataModule
+#neuralop library FNO
+#from models.FNO.FNOneuralop_lightning import FNOModule
+#custom FNO implementation
 from models.FNO.FNO_lightning import FNOModule
 
 class Runner:
