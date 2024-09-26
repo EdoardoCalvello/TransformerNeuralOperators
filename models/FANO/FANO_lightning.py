@@ -1,18 +1,11 @@
-import os
 import numpy as np
 from scipy.interpolate import griddata
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau, StepLR
-from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import wandb
 import matplotlib.pyplot as plt
-import pdb
-
-from itertools import islice
 
 from models.FANO.FANO_pytorch import SimpleEncoder
 
@@ -23,15 +16,10 @@ class SimpleEncoderModule(pl.LightningModule):
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
                  use_transformer=True,
-                 use_positional_encoding='continuous',
-                 append_position_to_x=False,
                  patch=False,
                  patch_size=None,
-                 fourier = False,
                  modes = None,
                  im_size=None,
-                 pos_enc_coeff=2,
-                 include_y0_input=False,
                  activation='relu',
                  monitor_metric='train_loss',
                  lr_scheduler_params={'patience': 3,
@@ -43,19 +31,12 @@ class SimpleEncoderModule(pl.LightningModule):
         self.learning_rate = learning_rate
         self.max_sequence_length = max_sequence_length
         self.use_transformer = use_transformer
-        self.use_positional_encoding = use_positional_encoding
-        self.append_position_to_x = append_position_to_x
         self.monitor_metric = monitor_metric
         self.lr_scheduler_params = lr_scheduler_params
         self.domain_dim = domain_dim
         self.patch = patch
-        self.fourier = fourier
         self.im_size = im_size
 
-        # whether to use y as input to the encoder
-        self.use_y_forward = include_y0_input
-
-        # currently used for including v0 in the input to the encoder
         # can also be used for decoding later on
 
         self.model = SimpleEncoder(input_dim=input_dim,
@@ -67,15 +48,10 @@ class SimpleEncoderModule(pl.LightningModule):
                                     max_sequence_length=max_sequence_length,
                                     do_layer_norm=do_layer_norm,
                                     use_transformer=use_transformer,
-                                    use_positional_encoding=use_positional_encoding,
-                                    append_position_to_x=append_position_to_x,
                                     patch=patch,
                                     patch_size=patch_size,
-                                    fourier=fourier,
                                     modes=modes,
                                     im_size = im_size,
-                                    pos_enc_coeff=pos_enc_coeff,
-                                    include_y0_input=include_y0_input,
                                     activation=activation,
                                     dropout=dropout,
                                     norm_first=norm_first,
@@ -83,22 +59,14 @@ class SimpleEncoderModule(pl.LightningModule):
 
         self.test_losses = {}
 
-    def forward(self, x, y, coords_x, coords_y, x_train_fourier_normalizer):
+    def forward(self, x, coords_x):
         coords_x = coords_x[0].unsqueeze(2)
-        coords_y = coords_y[0].unsqueeze(2)
 
-        if self.first_forward and self.patch==False:
-            self.first_forward = False
-            self.plot_positional_encoding(x, coords_x)
-
-        if self.use_y_forward:
-            return self.model(x, y=y, coords_x=coords_x, x_train_fourier_normalizer= x_train_fourier_normalizer)
-        else:
-            return self.model(x, y=None, coords_x=coords_x, x_train_fourier_normalizer=x_train_fourier_normalizer)
+        return self.model(x, coords_x=coords_x)
 
     def training_step(self, batch, batch_idx):
-        x, y, coords_x, coords_y, x_train_fourier_normalizer = batch
-        y_hat = self.forward(x, y, coords_x, coords_y, x_train_fourier_normalizer)
+        x, y, coords_x, coords_y = batch
+        y_hat = self.forward(x, coords_x)
         loss = F.mse_loss(y_hat, y)
         #loss = torch.mean(torch.mean(torch.mean(((y_hat.real- y.real)**2 + (y_hat.imag - y.imag)**2), dim=1),dim=1))
         self.log("loss/train/mse", loss, on_step=False,
@@ -146,7 +114,7 @@ class SimpleEncoderModule(pl.LightningModule):
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
 
-    def on_before_optimizer_step(self, optimizer):
+    def on_before_optimizer_step(self):
         # Compute the 2-norm for each layer and its gradient
         # If using mixed precision, the gradients are already unscaled here
         self.log_gradient_norms(tag='beforeOptimizer')
@@ -170,8 +138,8 @@ class SimpleEncoderModule(pl.LightningModule):
                      on_step=False, on_epoch=True, prog_bar=False)
 
     def validation_step(self, batch, batch_idx):
-        x, y, coords_x, coords_y, x_train_fourier_normalizer = batch
-        y_hat = self.forward(x, y, coords_x, coords_y, x_train_fourier_normalizer)
+        x, y, coords_x, coords_y = batch
+        y_hat = self.forward(x, coords_x)
         loss = F.mse_loss(y_hat, y)
         #loss = torch.mean(torch.mean(torch.mean(((y_hat.real- y.real)**2 + (y_hat.imag - y.imag)**2), dim=1),dim=1))
         self.log("loss/val/mse", loss, on_step=False,
@@ -219,15 +187,6 @@ class SimpleEncoderModule(pl.LightningModule):
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Val')
         return rel_H1_loss
 
-    def plot_positional_encoding(self, x, coords):
-        pe = self.model.positional_encoding(x, coords)
-        plt.figure()
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-        plt.imshow(pe.detach().cpu().numpy(), cmap='viridis', aspect='auto')
-        plt.colorbar()
-        plt.title('Positional Encoding')
-        wandb.log({f"plots/Positional Encoding": wandb.Image(fig)})
-        plt.close()
 
     def make_batch_figs(self, x, y, y_hat, coords_x, coords_y, tag='', n_examples=5):
         if n_examples > x.shape[0]:
@@ -311,224 +270,76 @@ class SimpleEncoderModule(pl.LightningModule):
 
     def batch_figs_2D(self, x, y_true, y_pred, coords_x, coords_y, tag, idx, n_grid=250):
 
-        if self.fourier:
 
-            coords_x1, coords_x2 = 1/coords_x[0,0,:,:], 1/coords_x[0,1,:,:]
-            coords_y1, coords_y2 = 1/coords_y[0,0,:,:], 1/coords_y[0,1,:,:]
+        # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
+        # plot the values of y_true and y_pred at the indices given by coords_y
 
-            half_size = coords_x1.shape[0]//2
+        # Plot a 3 paneled figure with 3 scalar 2-d fields (heatmaps)
+        # 1. Ground truth
+        # 2. Prediction
+        # 3. Relative difference
 
-            coords_x[:,0,...] =  np.roll(coords_x1, half_size, axis=0)
-            coords_x[:,1,...] =  np.roll(coords_x2, half_size, axis=1)
-            coords_y[:,0,...] =  np.roll(coords_y1, half_size, axis=0)
-            coords_y[:,1,...] =  np.roll(coords_y2, half_size, axis=1)
+        # get the low and high indices of the y coordinates
+        i_low_1, i_low_2 = np.min(coords_y[:,0,...]), np.min(coords_y[:,1,...])
+        i_high_1, i_high_2 = np.max(coords_y[:,0,...]), np.max(coords_y[:,1,...])
+        # build a meshgrid of coordinates based on coords_y
+        y1i, y2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2,i_high_2, n_grid))
 
+        # get the low and high indices of the x coordinates
+        i_low_1, i_low_2 = np.min(coords_x[:,0,...]), np.min(coords_x[:,1,...])
+        i_high_1, i_high_2 = np.max(coords_x[:,0,...]), np.max(coords_x[:,1,...])
+        #build a meshgrid of coordinates based on coords_y, ordering...
+        x1i, x2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2,i_high_2, n_grid))
 
-            # get the low and high indices of the y coordinates
-            i_low_1, i_low_2 = np.min(coords_y[:,0,...]), np.min(coords_y[:,1,...])
-            i_high_1, i_high_2 = np.max(coords_y[:,0,...]), np.max(coords_y[:,1,...])
-            # build a meshgrid of coordinates based on coords_y
-            y1i, y2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2,i_high_2, n_grid))
+        plt.figure()
+        fig, axs = plt.subplots(
+            nrows=4, ncols=len(idx), figsize=(10 * len(idx), 6 * 4), sharex=True, squeeze=False)
 
-            # get the low and high indices of the x coordinates
-            i_low_1, i_low_2 = np.min(coords_x[:,0,...]), np.min(coords_x[:,1,...])
-            i_high_1, i_high_2 = np.max(coords_x[:,0,...]), np.max(coords_x[:,1,...])
-            #build a meshgrid of coordinates based on coords_y, ordering...
-            x1i, x2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2,i_high_2, n_grid))
+        for col, idx_val in enumerate(idx):
 
-            plt.figure()
-            fig, axs = plt.subplots(
-                nrows=4, ncols=len(idx), figsize=(10 * len(idx), 6 * 4), sharex=True, squeeze=False)
+            #coords_x has shape (batch_size, domain_dim, rows, cols)
+            #coords_y has shape (batch_size, domain_dim, rows, cols)
+            #x has shape (batch_size, rows, cols)
+            #interpolate the griddata to get the values at the meshgrid points using the coords
+            x_input_i = griddata(
+                (coords_x[idx_val, 0, :, :].flatten(), coords_x[idx_val, 1, :, :].flatten()), x[idx_val].detach().cpu().numpy().flatten(), (x1i, x2i), method='linear')
+            y_true_i = griddata(
+                (coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_true[idx_val].flatten(), (y1i, y2i), method='linear')
+            y_pred_i = griddata((coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_pred[idx_val].flatten(), (y1i, y2i), method='linear')
 
-            for col, idx_val in enumerate(idx):
+            #y_true_i_norm = np.sqrt((1/(y_true_i.shape[0]*y_true_i.shape[1]))*np.sum(y_true_i**2))
+            y_rel_diff_i = np.abs(y_pred_i - y_true_i) #/ np.abs(y_true_i + 1e-5)
+            #y_rel_diff_i = np.abs(y_pred_i - y_true_i)
 
-                #coords_x has shape (batch_size, domain_dim, rows, cols)
-                #coords_y has shape (batch_size, domain_dim, rows, cols)
-                #x has shape (batch_size, rows, cols)
-                #interpolate the griddata to get the values at the meshgrid points using the coords
-                x_input_i = griddata(
-                    (coords_x[idx_val, 0, :, :].flatten(), coords_x[idx_val, 1, :, :].flatten()), x[idx_val].detach().cpu().numpy().flatten(), (x1i, x2i), method='linear')
-                y_true_i = griddata(
-                    (coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_true[idx_val].flatten(), (y1i, y2i), method='linear')
-                y_pred_i = griddata((coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_pred[idx_val].flatten(), (y1i, y2i), method='linear')
+            #plot median and worst case relative error
 
-                #y_true_i_norm = np.sqrt((1/(y_true_i.shape[0]*y_true_i.shape[1]))*np.sum(y_true_i**2))
-                y_rel_diff_i = np.abs(y_pred_i - y_true_i) #/ np.abs(y_true_i + 1e-5)
-                #y_rel_diff_i = np.abs(y_pred_i - y_true_i)
+            for i, ax in enumerate(axs[:, col]):
+                if i == 0:
+                    # plot input field x
+                    im = ax.imshow(x_input_i, cmap='viridis')
+                    ax.set_title(
+                        f'Input Field (Index {idx_val})')
 
-                #plot median and worst case relative error
-
-                for i, ax in enumerate(axs[:, col]):
-                    if i == 0:
-                        # plot input field x
-                        im = ax.imshow(x_input_i, cmap='viridis')
-                        ax.set_title(
-                            f'Input Field (Index {idx_val})')
-
-                    if i == 1:
-                        im = ax.imshow(y_true_i, cmap='viridis')
-                        ax.set_title(
-                            f'Ground Truth (Index {idx_val})')
-                    elif i == 2:
-                        im = ax.imshow(y_pred_i, cmap='viridis')
-                        ax.set_title(
-                            f'Prediction (Index {idx_val})')
-                    elif i == 3:
-                        # plot absolute relative error in log scale (difference divided by ground truth)
-                        #im = ax.imshow(np.log10(y_rel_diff_i + 1e-10), cmap='viridis', vmin=-5, vmax=3)
-                        im = ax.imshow(np.log10(y_rel_diff_i), cmap='inferno', vmin=-7,vmax=1)
-                        ax.set_title(
-                            f'Pointwise Error (Index {idx_val})')
-                    fig.colorbar(im, ax=ax)
-            fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth')
-            plt.subplots_adjust(hspace=0.5)
-            wandb.log(
-                {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
-            plt.close()
-
-
-
-
-        elif self.patch:
-
-            # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
-            # plot the values of y_true and y_pred at the indices given by coords_y
-
-            # Plot a 3 paneled figure with 3 scalar 2-d fields (heatmaps)
-            # 1. Ground truth
-            # 2. Prediction
-            # 3. Relative difference
-
-            # get the low and high indices of the y coordinates
-            i_low_1, i_low_2 = np.min(coords_y[:,0,...]), np.min(coords_y[:,1,...])
-            i_high_1, i_high_2 = np.max(coords_y[:,0,...]), np.max(coords_y[:,1,...])
-            # build a meshgrid of coordinates based on coords_y
-            y1i, y2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2,i_high_2, n_grid))
-
-            # get the low and high indices of the x coordinates
-            i_low_1, i_low_2 = np.min(coords_x[:,0,...]), np.min(coords_x[:,1,...])
-            i_high_1, i_high_2 = np.max(coords_x[:,0,...]), np.max(coords_x[:,1,...])
-            #build a meshgrid of coordinates based on coords_y, ordering...
-            x1i, x2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2,i_high_2, n_grid))
-
-            plt.figure()
-            fig, axs = plt.subplots(
-                nrows=4, ncols=len(idx), figsize=(10 * len(idx), 6 * 4), sharex=True, squeeze=False)
-
-            for col, idx_val in enumerate(idx):
-
-                #coords_x has shape (batch_size, domain_dim, rows, cols)
-                #coords_y has shape (batch_size, domain_dim, rows, cols)
-                #x has shape (batch_size, rows, cols)
-                #interpolate the griddata to get the values at the meshgrid points using the coords
-                x_input_i = griddata(
-                    (coords_x[idx_val, 0, :, :].flatten(), coords_x[idx_val, 1, :, :].flatten()), x[idx_val].detach().cpu().numpy().flatten(), (x1i, x2i), method='linear')
-                y_true_i = griddata(
-                    (coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_true[idx_val].flatten(), (y1i, y2i), method='linear')
-                y_pred_i = griddata((coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_pred[idx_val].flatten(), (y1i, y2i), method='linear')
-
-                #y_true_i_norm = np.sqrt((1/(y_true_i.shape[0]*y_true_i.shape[1]))*np.sum(y_true_i**2))
-                y_rel_diff_i = np.abs(y_pred_i - y_true_i) #/ np.abs(y_true_i + 1e-5)
-                #y_rel_diff_i = np.abs(y_pred_i - y_true_i)
-
-                #plot median and worst case relative error
-
-                for i, ax in enumerate(axs[:, col]):
-                    if i == 0:
-                        # plot input field x
-                        im = ax.imshow(x_input_i, cmap='viridis')
-                        ax.set_title(
-                            f'Input Field (Index {idx_val})')
-
-                    if i == 1:
-                        im = ax.imshow(y_true_i, cmap='viridis')
-                        ax.set_title(
-                            f'Ground Truth (Index {idx_val})')
-                    elif i == 2:
-                        im = ax.imshow(y_pred_i, cmap='viridis')
-                        ax.set_title(
-                            f'Prediction (Index {idx_val})')
-                    elif i == 3:
-                        # plot absolute relative error in log scale (difference divided by ground truth)
-                        #im = ax.imshow(np.log10(y_rel_diff_i + 1e-10), cmap='viridis', vmin=-5, vmax=3)
-                        im = ax.imshow(np.log10(y_rel_diff_i), cmap='inferno', vmin=-7,vmax=1)
-                        ax.set_title(
-                            f'Pointwise Error (Index {idx_val})')
-                    fig.colorbar(im, ax=ax)
-            fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth')
-            plt.subplots_adjust(hspace=0.5)
-            wandb.log(
-                {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
-            plt.close()
-
-
-        else:
-
-            # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
-            # plot the values of y_true and y_pred at the indices given by coords_y
-
-            # Plot a 3 paneled figure with 3 scalar 2-d fields (heatmaps)
-            # 1. Ground truth
-            # 2. Prediction
-            # 3. Relative difference
-
-            # get the low and high indices of the y coordinates
-            i_low_1, i_low_2 = np.min(coords_y[...,0]), np.min(coords_y[...,1])
-            i_high_1, i_high_2 = np.max(coords_y[...,0]), np.max(coords_y[...,1])
-            # build a meshgrid of coordinates based on coords_y
-            y1i, y2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2, i_high_2, n_grid))
-
-            # get the low and high indices of the x coordinates
-            i_low_1, i_low_2 = np.min(coords_x[...,0]), np.min(coords_x[...,1])
-            i_high_1, i_high_2 = np.max(coords_x[...,0]), np.max(coords_x[...,1])
-            #build a meshgrid of coordinates based on coords_y
-            x1i, x2i = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2, i_high_2, n_grid))
-
-            plt.figure()
-            fig, axs = plt.subplots(
-                nrows=4, ncols=len(idx), figsize=(10 * len(idx), 6 * 4), sharex=True, squeeze=False)
-
-            for col, idx_val in enumerate(idx):
-
-                x_input_i = griddata(
-                    (coords_x[idx_val, :, 0], coords_x[idx_val, :, 1]), x[idx_val].detach().cpu().numpy(), (x1i, x2i), method='linear')
-                y_true_i = griddata(
-                    (coords_y[idx_val, :, 0], coords_y[idx_val, :, 1]), y_true[idx_val], (y1i, y2i), method='linear')
-                y_pred_i = griddata((coords_y[idx_val, :, 0], coords_y[idx_val, :, 1]), y_pred[idx_val], (y1i, y2i), method='linear')
-                #y_true_i_norm = np.sqrt((1/(y_true_i.shape[0]*y_true_i.shape[1]))*np.sum(y_true_i**2))
-                y_rel_diff_i = np.abs(y_pred_i - y_true_i) #/ np.abs(y_true_i + 1e-5)
-                #y_rel_diff_i = np.abs(y_pred_i - y_true_i)
-
-                #plot median and worst case relative error
-
-                for i, ax in enumerate(axs[:, col]):
-                    if i == 0:
-                        # plot input field x
-                        im = ax.imshow(x_input_i, cmap='viridis')
-                        ax.set_title(
-                            f'Input Field (Index {idx_val})')
-
-                    if i == 1:
-                        im = ax.imshow(y_true_i, cmap='viridis')
-                        ax.set_title(
-                            f'Ground Truth (Index {idx_val})')
-                    elif i == 2:
-                        im = ax.imshow(y_pred_i, cmap='viridis')
-                        ax.set_title(
-                            f'Prediction (Index {idx_val})')
-                    elif i == 3:
-                        # plot absolute relative error in log scale (difference divided by ground truth)
-                        #im = ax.imshow(np.log10(y_rel_diff_i + 1e-10), cmap='viridis', vmin=-5, vmax=3)
-                        im = ax.imshow(np.log10(y_rel_diff_i), cmap='inferno', vmin=-7,vmax=1)
-                        ax.set_title(
-                            f'Pointwise Error (Index {idx_val})')
-                    fig.colorbar(im, ax=ax)
-
-            fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth')
-            plt.subplots_adjust(hspace=0.5)
-            wandb.log(
-                {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
-            plt.close()
+                if i == 1:
+                    im = ax.imshow(y_true_i, cmap='viridis')
+                    ax.set_title(
+                        f'Ground Truth (Index {idx_val})')
+                elif i == 2:
+                    im = ax.imshow(y_pred_i, cmap='viridis')
+                    ax.set_title(
+                        f'Prediction (Index {idx_val})')
+                elif i == 3:
+                    # plot absolute relative error in log scale (difference divided by ground truth)
+                    #im = ax.imshow(np.log10(y_rel_diff_i + 1e-10), cmap='viridis', vmin=-5, vmax=3)
+                    im = ax.imshow(np.log10(y_rel_diff_i), cmap='inferno', vmin=-7,vmax=1)
+                    ax.set_title(
+                        f'Pointwise Error (Index {idx_val})')
+                fig.colorbar(im, ax=ax)
+        fig.suptitle(f'{tag} Predicted Fields: Prediction vs. Truth')
+        plt.subplots_adjust(hspace=0.5)
+        wandb.log(
+            {f"plots/{tag}/Predicted Fields: Prediction vs. Truth": wandb.Image(fig)})
+        plt.close()
 
 
     def test_figs_2D(self, median_sample, worst_sample, tag):
@@ -541,8 +352,6 @@ class SimpleEncoderModule(pl.LightningModule):
         x_median, y_median, coords_x_median, coords_y_median, y_pred_median, median_error = x_median.cpu().numpy(), y_median.cpu().numpy(), coords_x_median.cpu().numpy(), coords_y_median.cpu().numpy(), y_pred_median.cpu().numpy(), median_error
         x_min, y_min, coords_x_min, coords_y_min , y_pred_min, min_error = x_min.cpu().numpy(), y_min.cpu().numpy(), coords_x_min.cpu().numpy(), coords_y_min.cpu().numpy() , y_pred_min.cpu().numpy(), min_error
 
-        #use tag
-        #get rid of savefig and use logging
 
         ############################################################################################################
         ############################################################################################################
@@ -550,28 +359,6 @@ class SimpleEncoderModule(pl.LightningModule):
         # Each element of y_true and y_pred is a 2D field with coordinates given by coords_y
         # plot the values of y_true and y_pred at the indices given by coords_y
         n_grid=250
-
-        if self.fourier:
-
-            coords_x1_min, coords_x2_min = 1/coords_x_min[0,:,:], 1/coords_x_min[1,:,:]
-            coords_y1_min, coords_y2_min = 1/coords_y_min[0,:,:], 1/coords_y_min[1,:,:]
-
-            half_size = coords_x1_min.shape[0]//2
-
-            coords_x_min[0,...] =  np.roll(coords_x1_min, half_size, axis=0)
-            coords_x_min[1,...] =  np.roll(coords_x2_min, half_size, axis=1)
-            coords_y_min[0,...] =  np.roll(coords_y1_min, half_size, axis=0)
-            coords_y_min[1,...] =  np.roll(coords_y2_min, half_size, axis=1)
-
-            coords_x1_median, coords_x2_median = 1/coords_x_median[0,:,:], 1/coords_x_median[1,:,:]
-            coords_y1_median, coords_y2_median = 1/coords_y_median[0,:,:], 1/coords_y_median[1,:,:]
-
-            half_size = coords_x1_median.shape[0]//2
-
-            coords_x_median[0,...] =  np.roll(coords_x1_median, half_size, axis=0)
-            coords_x_median[1,...] =  np.roll(coords_x2_median, half_size, axis=1)
-            coords_y_median[0,...] =  np.roll(coords_y1_median, half_size, axis=0)
-            coords_y_median[1,...] =  np.roll(coords_y2_median, half_size, axis=1)
 
         ###
 
@@ -620,49 +407,6 @@ class SimpleEncoderModule(pl.LightningModule):
 
         y_rel_diff_median = np.abs(y_pred_median - y_true_median)
 
-        '''
-        # get the low and high indices of the y coordinates
-        i_low_1, i_low_2 = np.min(coords_y_min[...,0]), np.min(coords_y_min[...,1])
-        i_high_1, i_high_2 = np.max(coords_y_min[...,0]), np.max(coords_y_min[...,1])
-        # build a meshgrid of coordinates based on coords_y
-        y1i_min, y2i_min = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2, i_high_2, n_grid))
-
-        # get the low and high indices of the x coordinates
-        i_low_1, i_low_2 = np.min(coords_x_min[...,0]), np.min(coords_x_min[...,1])
-        i_high_1, i_high_2 = np.max(coords_x_min[...,0]), np.max(coords_x_min[...,1])
-        # build a meshgrid of coordinates based on coords_y
-        x1i_min, x2i_min = np.meshgrid(np.linspace(i_low_1, i_high_1, n_grid), np.linspace(i_low_2, i_high_2, n_grid))
-
-        # get the low and high indices of the y coordinates
-        i_low_1_median, i_low_2_median = np.min(coords_y_median[...,0]), np.min(coords_y_median[...,1])
-        i_high_1_median, i_high_2_median = np.max(coords_y_median[...,0]), np.max(coords_y_median[...,1])
-        # build a meshgrid of coordinates based on coords_y
-        y1i_median, y2i_median = np.meshgrid(np.linspace(i_low_1_median, i_high_1_median, n_grid), np.linspace(i_low_2_median, i_high_2_median, n_grid))
-
-        # get the low and high indices of the x coordinates
-        i_low_1_median, i_low_2_median = np.min(coords_x_median[...,0]), np.min(coords_x_median[...,1])
-        i_high_1_median, i_high_2_median = np.max(coords_x_median[...,0]), np.max(coords_x_median[...,1])
-        # build a meshgrid of coordinates based on coords_y
-        x1i_median, x2i_median = np.meshgrid(np.linspace(i_low_1_median, i_high_1_median, n_grid), np.linspace(i_low_2_median, i_high_2_median, n_grid))
-
-        plt.figure()
-        fig, axs = plt.subplots(
-            nrows=4, ncols=2, figsize=(16, 24), sharex=True, squeeze=False)
-
-        x_input_min = griddata(
-                (coords_x_min[:, 0], coords_x_min[:, 1]), x_min, (x1i_min, x2i_min), method='linear')
-        y_true_min = griddata(
-                (coords_y_min[ :, 0], coords_y_min[ :, 1]), y_min, (y1i_min, y2i_min), method='linear')
-        y_pred_min = griddata((coords_y_min[ :, 0], coords_y_min[ :, 1]), y_pred_min[0,:,:], (y1i_min, y2i_min), method='linear')
-        y_rel_diff_min = np.abs(y_pred_min - y_true_min)
-
-        x_input_median = griddata(
-                (coords_x_median[:, 0], coords_x_median[:, 1]), x_median, (x1i_median, x2i_median), method='linear')
-        y_true_median = griddata(
-                (coords_y_median[:, 0], coords_y_median[:, 1]), y_median, (y1i_median, y2i_median), method='linear')
-        y_pred_median = griddata((coords_y_median[ :, 0], coords_y_median[ :, 1]), y_pred_median[0,:,:], (y1i_median, y2i_median), method='linear')
-        y_rel_diff_median = np.abs(y_pred_median - y_true_median)
-        '''
 
         data_sets = {
             (1, 0): x_input_min,
@@ -701,11 +445,11 @@ class SimpleEncoderModule(pl.LightningModule):
         dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
         im_size = self.trainer.datamodule.test_im_sizes[dataloader_idx]
         patch_size = self.trainer.datamodule.test_patch_sizes[dataloader_idx]
-        x, y, coords_x, coords_y, x_train_fourier_normalizer = batch
+        x, y, coords_x, coords_y = batch
         # Modify model's im_size for testing
         self.model.set_im_size(im_size,patch_size)
 
-        y_hat = self.forward(x, y, coords_x, coords_y, x_train_fourier_normalizer)
+        y_hat = self.forward(x, coords_x)
 
 
         loss = F.mse_loss(y_hat, y)

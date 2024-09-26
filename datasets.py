@@ -3,13 +3,9 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torchdiffeq import odeint
 import pytorch_lightning as pl
-import scipy.io
-from sklearn.model_selection import train_test_split
-from utils import InactiveNormalizer, UnitGaussianNormalizer, MaxMinNormalizer, FourierNormalizer
-from utils import subsample_and_flatten, patch_coords, fourier_coords, fourier_transformation
+from utils import UnitGaussianNormalizer
+from utils import subsample_and_flatten, patch_coords
 import h5py
-
-from pdb import set_trace as bp
 
 def MetaDataModule(domain_dim=1, **kwargs):
     """
@@ -78,7 +74,7 @@ def load_dyn_sys_class(dataset_name):
         raise ValueError(f"Dataset class '{dataset_name}' not found.")
 
 class DynSys(object):
-    def __init__(self, state_dim=1):
+    def __init__(self, state_dim=1, size=1):
         '''
         Initialize a dynamical system object.
 
@@ -86,6 +82,7 @@ class DynSys(object):
             state_dim (int): Dimension of the state space (default is 1).
         '''
         self.state_dim = state_dim
+        self.size = size
     
     def rhs(self, t, x):
         '''
@@ -126,6 +123,7 @@ class DynSys(object):
         '''
         times = torch.arange(0, T, dt)
         '''
+        #uncomment to experiment with non uniformly sampled time series
         if test==True:
             split_index = len(times) // 2
             first_half = times[:split_index]
@@ -133,6 +131,7 @@ class DynSys(object):
             result = torch.cat((first_half, second_half), dim=0)
         '''
             ####
+            #uncomment to experiment with randomly sampled time stamps
             #torch.manual_seed(0)
             #gaussian_vector = torch.randn(int(T/dt))
             #sorted_vector, _ = torch.sort(gaussian_vector)
@@ -205,10 +204,25 @@ class ControlledODE(DynSys):
 
     '''
 
-    def __init__(self, state_dim=3, freq_low=0.1, freq_high=2):
+    def __init__(self, state_dim=3, freq_low=0.1, freq_high=2, params={'size':1}):
         super().__init__(state_dim=state_dim)
         self.freq_low = torch.tensor(freq_low)
         self.freq_high = torch.tensor(freq_high)
+        self.size = params['size']
+        self.xi = torch.randn(self.size, 10)
+        self.freqs = torch.empty(self.size, 10).uniform_(0, 10)
+        self.decay = (1/torch.linspace(1, 10, steps=10)).reshape(1,-1).repeat(self.size,1)
+
+    def u(self, t, x):
+        return torch.sum(self.xi * self.decay* torch.sin(np.pi * self.freqs * t),dim=1).reshape(-1,1)
+    
+    def ut(self,t,x):
+        return torch.sum(self.xi.unsqueeze(-1).repeat(1,1,t.shape[-1]) * self.decay.unsqueeze(-1).repeat(1,1,t.shape[-1])* torch.sin(np.pi * self.freqs.unsqueeze(-1).repeat(1,1,t.shape[-1]) * t),dim=1)
+
+    def du(self, t, x):
+        return torch.sum(np.pi * self.xi * self.freqs * self.decay* torch.cos(np.pi * self.freqs * t),dim=1).reshape(-1,1)
+
+
 
     def rhs(self, t, x):
         '''
@@ -222,12 +236,10 @@ class ControlledODE(DynSys):
             torch.Tensor: The derivative of the state vector.
 
         '''
-        u, udot, v = x[:, 0:1], x[:, 1:2], x[:, 2:3]
+        v = x[:, 0:1]
+        dv = torch.sin(v) * self.du(t, x)
 
-        du = torch.sum(np.pi * self.xi * self.freqs * torch.cos(np.pi * self.freqs * t),dim=1).reshape(-1,1)
-        ddu = torch.sum(- np.pi**2 * self.xi**2 * self.freqs**2 * torch.cos(np.pi * self.freqs * t), dim=1).reshape(-1,1)
-        dv = torch.sin(v) * udot
-        return torch.cat([du, ddu, dv], dim=1)
+        return dv
 
     def get_inits(self, size):
         '''
@@ -240,23 +252,9 @@ class ControlledODE(DynSys):
             torch.Tensor: The initial conditions.
 
         '''
-        #self.freq = torch.empty(size, 1).uniform_(self.freq_low, self.freq_high)
-
-        # Generate a tensor of size 5 with Gaussian random variables
-        self.xi = torch.randn(size, 5)
-        # Generate a tensor of size 5 with integers uniformly distributed in [1, 5]
-        #self.freqs = torch.randint(low=1, high=6, size=(size,5))
-        #self.freqs = torch.randint(low=1, high=6, size=(1,5)).repeat(size,1)
-        self.freqs = torch.linspace(1,5,steps=5).reshape(1,-1).repeat(size,1)
-        #
-        self.decay = (1/torch.linspace(1, 5, steps=5)).reshape(1,-1).repeat(size,1)
-
-
-        u0 = torch.zeros(size, 1)
-        udot0 = torch.sum(np.pi * self.freqs * self.xi * self.decay, dim =1).reshape(-1,1)
         v0 = torch.ones(size, 1)
 
-        xyz0 = torch.cat([u0, udot0, v0], dim=1)
+        xyz0 = v0
         return xyz0
 
 class Lorenz63(DynSys):
@@ -378,7 +376,9 @@ class DynamicsDataset(Dataset):
         self.size = size
         self.T = T
         self.sample_rate = sample_rate
-        self.dynsys = load_dyn_sys_class(dyn_sys_name)(**params)
+        params['size'] = size
+        self.dynsys = load_dyn_sys_class(dyn_sys_name)(params=params)
+        self.dynsys_name = dyn_sys_name
         self.input_inds = input_inds
         self.output_inds = output_inds
         self.test = test
@@ -392,11 +392,18 @@ class DynamicsDataset(Dataset):
         # Seq_len, Size (N_traj), state_dim
         xyz, times = self.dynsys.solve(N_traj=self.size, T=self.T, dt=self.sample_rate, test=self.test)
 
-        # use traj from the 1st component of L63 as input
-        self.x = xyz[:, :, self.input_inds].permute(1, 0, 2)
-        # use traj from the 3rd component of L63 as output
-        self.y = xyz[:, :, self.output_inds].permute(1, 0, 2)
-        # self.x, self.y are both: (n_traj (size), Seq_len, dim_state)
+
+        if self.dynsys_name == 'ControlledODE':
+            self.x = self.dynsys.ut(times.reshape(1,1,-1).repeat(self.size,10,1), xyz.permute(1, 0, 2)).unsqueeze(-1)
+            self.y = xyz[:, :, :].permute(1, 0, 2)
+
+        else:
+
+            # use traj from the 1st component of L63 as input
+            self.x = xyz[:, :, self.input_inds].permute(1, 0, 2)
+            # use traj from the 3rd component of L63 as output
+            self.y = xyz[:, :, self.output_inds].permute(1, 0, 2)
+            # self.x, self.y are both: (n_traj (size), Seq_len, dim_state)
 
         #normalize data
         self.x_normalizer = UnitGaussianNormalizer(
@@ -560,7 +567,6 @@ class DynamicsDataModule(pl.LightningDataModule):
             return DataLoader(self.test[sample_rate], batch_size=self.batch_size)
 
 ############ Spatial 2D data set ################
-############ Spatial 2D data set ################
 class Spatial2dDataModule(pl.LightningDataModule):
     def __init__(self,
                  batch_size=64,
@@ -572,7 +578,6 @@ class Spatial2dDataModule(pl.LightningDataModule):
                  dyn_sys_name='darcy_low_res',
                  random_state=0,
                  patch=False,
-                 fourier=False,
                  **kwargs
                  ):
         super().__init__()
@@ -584,7 +589,6 @@ class Spatial2dDataModule(pl.LightningDataModule):
         self.dyn_sys_name = dyn_sys_name
         self.random_state = random_state
         self.patch = patch
-        self.fourier = fourier
 
         self.make_splits(split_frac)
 
@@ -642,21 +646,11 @@ class Spatial2dDataModule(pl.LightningDataModule):
         self.x_train, self.y_train, self.active_coordinates_x, self.active_coordinates_y = self.sample(x_train, y_train, self.train_sample_stride)
         self.x_val, self.y_val, _, _ = self.sample(x_val, y_val, self.train_sample_stride)
 
-
-        #normalize fourier transform by mean and std of fourier transform of training data
-        if self.fourier:
-            self.x_train_fourier_normalizer = FourierNormalizer(self.x_train)
-        else:
-            self.x_train_fourier_normalizer = 0
-
-        #delete if uncomment above
-        #self.x_train_fourier_normalizer = 0
-
         # define test sets
         self.x_test, self.y_test = {}, {}
         self.active_coordinates_x_test, self.active_coordinates_y_test = {}, {}
 
-        if self.patch or self.fourier:
+        if self.patch:
             #for stride in self.test_sample_rates: if stride is 1, then we just use x_test and y_test, if stride is 2 then use self.dyn_sys_name+'_half' if
             #stride is 0.5 then use self.dyn_sys_name+'_double'
 
@@ -724,28 +718,11 @@ class Spatial2dDataModule(pl.LightningDataModule):
 
     def sample(self, x, y, stride, test=False):
 
-        if self.fourier:
-
-            # x, y are (N, length, width)
-            active_coordinates_x = fourier_coords(x,stride)
-            active_coordinates_y = fourier_coords(y,stride)
-
-            #x = sample_2D(x, stride, test)
-            #y = sample_2D(y, stride, test)
-
-            '''
-            #if test==False:
-            y = fourier_transformation(y)
-            '''
-
-        elif self.patch:
+        if self.patch:
 
             # x, y are (N, length, width)
             active_coordinates_x = patch_coords(x,stride)
             active_coordinates_y = patch_coords(y,stride)
-
-            #x = sample_2D(x, stride, test)
-            #y = sample_2D(y, stride, test)
 
         else:
 
@@ -768,10 +745,10 @@ class Spatial2dDataModule(pl.LightningDataModule):
 
         # Assign train/val datasets for use in dataloaders
         self.train = Spatial2dDataset(self.x_train, self.y_train,
-                                      self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer)
+                                      self.active_coordinates_x, self.active_coordinates_y)
 
         self.val = Spatial2dDataset(self.x_val, self.y_val,
-                            self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer,
+                            self.active_coordinates_x, self.active_coordinates_y,
                             x_normalizer=self.train.x_normalizer,
                             y_normalizer=self.train.y_normalizer)
 
@@ -780,18 +757,10 @@ class Spatial2dDataModule(pl.LightningDataModule):
         for stride in self.test_sample_rates:
             self.test[stride] = Spatial2dDataset(self.x_test[stride], self.y_test[stride],
                                     self.active_coordinates_x_test[stride], self.active_coordinates_y_test[stride],
-                                    self.x_train_fourier_normalizer,
                                     x_normalizer=self.train.x_normalizer,
                                     y_normalizer=self.train.y_normalizer,
                                     test=True,
                                     )
-            # NOTE: there is slight train/test leakage because the normalizer
-            # sees all the high-frequency training data, and this normalization
-            # is used during testing. Technically, we should only store statistics
-            # from the explicitly sampled training set.
-            # So, not really a "train/test" leakage but rather we should admit that
-            # the training technically sees a tiny bit of the high-frequency data
-            # (only in the form of its statistics at each coordinate)
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size)
@@ -806,7 +775,6 @@ class Spatial2dDataset(Dataset):
     def __init__(self, x, y,
                 active_coordinates_x,
                 active_coordinates_y,
-                x_train_fourier_normalizer,
                 x_normalizer=None,
                 y_normalizer=None,
                 **kwargs):
@@ -815,7 +783,6 @@ class Spatial2dDataset(Dataset):
         '''
         self.active_coordinates_x = active_coordinates_x
         self.active_coordinates_y = active_coordinates_y
-        self.x_train_fourier_normalizer = x_train_fourier_normalizer
         self.generate_data(x, y, x_normalizer, y_normalizer)
 
     def generate_data(self, x, y, x_normalizer, y_normalizer):
@@ -827,10 +794,6 @@ class Spatial2dDataset(Dataset):
             #normalize data
             self.x_normalizer = UnitGaussianNormalizer(x.reshape(-1,1))
             self.y_normalizer = UnitGaussianNormalizer(y.reshape(-1,1))
-            #self.x_normalizer = UnitGaussianNormalizer(
-                #x.reshape(-1, x.shape[-1]))
-            #self.y_normalizer = UnitGaussianNormalizer(
-                #y.reshape(-1, y.shape[-1]))
         else:
             self.x_normalizer = x_normalizer
             self.y_normalizer = y_normalizer
@@ -843,4 +806,4 @@ class Spatial2dDataset(Dataset):
         return self.x.shape[0]
 
     def __getitem__(self, idx):
-        return self.x[idx], self.y[idx], self.active_coordinates_x, self.active_coordinates_y, self.x_train_fourier_normalizer
+        return self.x[idx], self.y[idx], self.active_coordinates_x, self.active_coordinates_y

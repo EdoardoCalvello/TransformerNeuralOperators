@@ -24,7 +24,6 @@ exp_dict = {
     'test_sample_rates': [[0.5,0.75,1,1.5,2]],
     'test_im_sizes': [[832,624,416,312,208]],
     'test_patch_sizes': [[64,48,32,24,16]],
-    'pos_enc_coeff': [1],#[0, 1, 2, 3],
     'batch_size': [2],
     'dyn_sys_name': ['NavierStokes'],
     # optimizer settings
@@ -36,10 +35,8 @@ exp_dict = {
     'max_epochs': [80],
     'monitor_metric': ['loss/val/mse'],
     # model settings (modest model size for debugging)
-    'include_y0_input': [False], #['uniform', 'staggered', False],
     'patch': [True],
     'patch_size': [32],
-    'fourier': [False],
     'modes': [[9,9]],
     'im_size': [416],
     'd_model': [32,64,96],
@@ -47,8 +44,6 @@ exp_dict = {
     'num_layers': [6],
     'dim_feedforward': [128],
     'activation': ['gelu'],
-    'use_positional_encoding': [False], #['continuous', 'discrete', False],
-    'append_position_to_x': [False], #[True, False],
     'gradient_clip_val':[None] #or 10.0 whenever want to use
 }
 

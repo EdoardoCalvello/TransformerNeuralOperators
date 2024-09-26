@@ -36,15 +36,10 @@ class Runner:
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             tune_initial_lr=False,
             use_transformer=True,
-            use_positional_encoding='continuous',
-            append_position_to_x=False,
             patch=False,
             patch_size=None,
-            fourier = False,
             modes = None,
             im_size=None,
-            pos_enc_coeff=2, # coefficient for positional encoding
-            include_y0_input=False,
             do_layer_norm=True,
             norm_first=False,
             d_model=128,
@@ -83,7 +78,6 @@ class Runner:
                                  'dyn_sys_name': dyn_sys_name,
                                  'patch': patch, # used for 2d spatial, but not in timeseries
                                  'patch_size': patch_size, # used for 2d spatial, but not in timeseries
-                                 'fourier': fourier,
                                  'input_inds': input_inds,
                                  'output_inds': output_inds,
                                  }
@@ -94,15 +88,10 @@ class Runner:
                                   'monitor_metric': monitor_metric,
                                   'lr_scheduler_params': lr_scheduler_params,
                                   'use_transformer': use_transformer,
-                                  'use_positional_encoding': use_positional_encoding,
-                                  'append_position_to_x': append_position_to_x,
                                   'patch': patch,
                                   'patch_size': patch_size,
-                                  'fourier': fourier,
                                   'modes': modes,
                                   'im_size': im_size, # used for 2d spatial, but not in timeseries
-                                  'pos_enc_coeff': pos_enc_coeff,
-                                  'include_y0_input': include_y0_input,
                                   'do_layer_norm': do_layer_norm,
                                   'norm_first': norm_first,
                                   'd_model': d_model,
