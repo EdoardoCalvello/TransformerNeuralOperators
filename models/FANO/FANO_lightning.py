@@ -532,7 +532,6 @@ class SimpleEncoderModule(pl.LightningModule):
             # Retrieve the samples using indices,
             ###################################################
             ###################################################
-            # !!!!!terrible code!!!!!
             for batch_idx, batch in enumerate(test_dataloader):
                 if batch_idx == median_batch_idx:
                     median_batch = batch
