@@ -20,6 +20,8 @@ class SimpleEncoderModule(pl.LightningModule):
                  patch_size=None,
                  modes = None,
                  im_size=None,
+                 smoothing = False,
+                 smoothing_modes = 32,
                  activation='relu',
                  monitor_metric='train_loss',
                  lr_scheduler_params={'patience': 3,
@@ -36,6 +38,8 @@ class SimpleEncoderModule(pl.LightningModule):
         self.domain_dim = domain_dim
         self.patch = patch
         self.im_size = im_size
+        self.smoothing = smoothing
+        self.smoothing_modes = smoothing_modes
 
         # can also be used for decoding later on
 
@@ -52,6 +56,8 @@ class SimpleEncoderModule(pl.LightningModule):
                                     patch_size=patch_size,
                                     modes=modes,
                                     im_size = im_size,
+                                    smoothing = smoothing,
+                                    smoothing_modes = smoothing_modes,
                                     activation=activation,
                                     dropout=dropout,
                                     norm_first=norm_first,
@@ -114,7 +120,7 @@ class SimpleEncoderModule(pl.LightningModule):
     def on_after_backward(self):
         self.log_gradient_norms(tag='afterBackward')
 
-    def on_before_optimizer_step(self):
+    def on_before_optimizer_step(self,optimizer):
         # Compute the 2-norm for each layer and its gradient
         # If using mixed precision, the gradients are already unscaled here
         self.log_gradient_norms(tag='beforeOptimizer')

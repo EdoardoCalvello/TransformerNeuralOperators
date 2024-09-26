@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
-from torch.fft import rfft2, irfft2
 
 
 from models.transformer_custom import TransformerEncoder_Operator
@@ -15,15 +13,12 @@ class SimpleEncoder(torch.nn.Module):
                  learning_rate=0.01, max_sequence_length=100,
                  do_layer_norm=True,
                  use_transformer=True,
-                 use_positional_encoding='continuous',
-                 append_position_to_x=False,
                  patch=False,
                  patch_size=None,
-                 fourier = False,
                  modes=None,
                  im_size=None,
-                 pos_enc_coeff=2,
-                 include_y0_input=False,
+                 smoothing = False,
+                 smoothing_modes = None,
                  activation='relu',
                  dropout=0.1, norm_first=False, dim_feedforward=2048):
         super(SimpleEncoder, self).__init__()
@@ -38,8 +33,9 @@ class SimpleEncoder(torch.nn.Module):
         self.patch_size = patch_size
         #one 2* for imaginary part of fourier transform, one +1 for domain_dim
         self.patch_dim = (self.domain_dim+1)*(self.patch_size**2)
-
         self.im_size = im_size
+        self.smoothing = smoothing
+        self.smoothing_modes = smoothing_modes
 
 
         encoder_layer = TransformerEncoderLayer_Conv(
@@ -64,7 +60,8 @@ class SimpleEncoder(torch.nn.Module):
         self.size_row = self.im_size
         self.size_col = self.im_size
         self.linear_out = nn.Linear(d_model,1)
-        self.smoothing = SpectralConv2d(1,1,64,64)
+        if self.smoothing:
+            self.smoothing = SpectralConv2d(1,1,smoothing_modes,smoothing_modes)
         self.num_patches = (self.size_row*self.size_col)//(self.patch_size**2)
 
             
@@ -127,11 +124,10 @@ class SimpleEncoder(torch.nn.Module):
         x = self.linear_out(x)  # (batch_size, seq_len, output_dim)? I think it's (batch_size, seq_len, output_dim)
         x = x.squeeze(3)
 
-        
-        x = x.unsqueeze(1)
-        x = x + self.smoothing(x)
-        x = x.squeeze(1)
-        
+        if self.smoothing:
+            x = x.unsqueeze(1)
+            x = x + self.smoothing(x)
+            x = x.squeeze(1)
 
         #learning residual
         #x = x + residual
