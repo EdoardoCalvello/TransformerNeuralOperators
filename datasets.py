@@ -721,8 +721,8 @@ class Spatial2dDataModule(pl.LightningDataModule):
         if self.patch:
 
             # x, y are (N, length, width)
-            active_coordinates_x = patch_coords(x,stride)
-            active_coordinates_y = patch_coords(y,stride)
+            active_coordinates_x = patch_coords(x)
+            active_coordinates_y = patch_coords(y)
 
         else:
 
