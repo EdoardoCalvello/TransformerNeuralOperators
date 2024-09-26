@@ -23,7 +23,6 @@ exp_dict = {
     'train_sample_rate': [1],
     'test_sample_rates': [[0.5,0.75,1,1.5,2]],
     'test_im_sizes': [[832,624,416,312,208]],
-    'test_patch_sizes': [[64,48,32,24,16]],
     'batch_size': [8],
     'dyn_sys_name': ['darcy_discontinuous'],
     # optimizer settings
