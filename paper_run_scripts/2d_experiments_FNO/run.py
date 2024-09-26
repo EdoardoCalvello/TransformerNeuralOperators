@@ -25,6 +25,7 @@ exp_dict = {
     'test_im_sizes': [[832,624,416,312,208]],
     'batch_size': [8],
     'dyn_sys_name': ['darcy_discontinuous'],
+    'patch': [True], #only needed for 2d coords, should change name 
     # optimizer settings
     'learning_rate': [1e-3,1e-4],
     'dropout': [1e-4],
