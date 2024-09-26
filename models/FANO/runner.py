@@ -40,6 +40,8 @@ class Runner:
             patch_size=None,
             modes = None,
             im_size=None,
+            smoothing=False,
+            smoothing_modes=32,
             do_layer_norm=True,
             norm_first=False,
             d_model=128,
@@ -92,6 +94,8 @@ class Runner:
                                   'patch_size': patch_size,
                                   'modes': modes,
                                   'im_size': im_size, # used for 2d spatial, but not in timeseries
+                                  'smoothing': smoothing,
+                                  'smoothing_modes': smoothing_modes,
                                   'do_layer_norm': do_layer_norm,
                                   'norm_first': norm_first,
                                   'd_model': d_model,
@@ -154,14 +158,11 @@ class Runner:
 
 
         # Initialize the trainer
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                      **self.trainer_hyperparams)
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                     **self.trainer_hyperparams, plugins="deepspeed_stage_2", precision=16, devices=2)
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                      **self.trainer_hyperparams, accelerator='gpu', devices=4)
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-                        **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=2)
+                              **self.trainer_hyperparams)
+        #if using ddp, need to use torch.view_as_real and torch.view_as_complex for any fft method in transformer_custom.py
+        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+        #                **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=2)
 
 
         # Tune the model
