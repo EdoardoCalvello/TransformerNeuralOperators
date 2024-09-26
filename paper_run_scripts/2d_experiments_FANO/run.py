@@ -25,7 +25,7 @@ exp_dict = {
     'test_im_sizes': [[832,624,416,312,208]],
     'test_patch_sizes': [[64,48,32,24,16]],
     'batch_size': [2],
-    'dyn_sys_name': ['NavierStokes'],
+    'dyn_sys_name': ['NavierStokes'], #'darcy_high_res','darcy_discontinuous',
     # optimizer settings
     'learning_rate': [1e-3,1e-4],
     'dropout': [1e-4],
@@ -39,6 +39,8 @@ exp_dict = {
     'patch_size': [32],
     'modes': [[9,9]],
     'im_size': [416],
+    'smoothing': [False],
+    'smoothing_modes': [64],
     'd_model': [32,64,96],
     'nhead': [8],
     'num_layers': [6],
