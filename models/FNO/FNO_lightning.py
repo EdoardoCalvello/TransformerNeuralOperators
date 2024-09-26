@@ -2,17 +2,12 @@ import os
 import numpy as np
 from scipy.interpolate import griddata
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau, StepLR
-from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import wandb
 import matplotlib.pyplot as plt
-import pdb
 
-from itertools import islice
 
 from models.FNO.FNO_pytorch import FNO
 
@@ -52,15 +47,14 @@ class FNOModule(pl.LightningModule):
         
         self.test_losses = {}
 
-    def forward(self, x, y, coords_x, coords_y, x_train_fourier_normalizer):
+    def forward(self, x, coords_x):
         coords_x = coords_x[0].unsqueeze(2)
-        coords_y = coords_y[0].unsqueeze(2)
 
-        return self.model(x, y=None, coords_x=coords_x, x_train_fourier_normalizer=x_train_fourier_normalizer)
+        return self.model(x, coords_x=coords_x)
 
     def training_step(self, batch, batch_idx):
-        x, y, coords_x, coords_y, x_train_fourier_normalizer = batch
-        y_hat = self.forward(x, y, coords_x, coords_y, x_train_fourier_normalizer)
+        x, y, coords_x, coords_y = batch
+        y_hat = self.forward(x, coords_x)
         loss = F.mse_loss(y_hat, y)
         #loss = torch.mean(torch.mean(torch.mean(((y_hat.real- y.real)**2 + (y_hat.imag - y.imag)**2), dim=1),dim=1))
         self.log("loss/train/mse", loss, on_step=False,
@@ -132,8 +126,8 @@ class FNOModule(pl.LightningModule):
                      on_step=False, on_epoch=True, prog_bar=False)
 
     def validation_step(self, batch, batch_idx):
-        x, y, coords_x, coords_y, x_train_fourier_normalizer = batch
-        y_hat = self.forward(x, y, coords_x, coords_y, x_train_fourier_normalizer)
+        x, y, coords_x, coords_y = batch
+        y_hat = self.forward(x, coords_x)
         loss = F.mse_loss(y_hat, y)
         #loss = torch.mean(torch.mean(torch.mean(((y_hat.real- y.real)**2 + (y_hat.imag - y.imag)**2), dim=1),dim=1))
         self.log("loss/val/mse", loss, on_step=False,
@@ -181,15 +175,6 @@ class FNOModule(pl.LightningModule):
             self.make_batch_figs(x, y, y_hat, coords_x, coords_y, tag='Val')
         return rel_loss
 
-    def plot_positional_encoding(self, x, coords):
-        pe = self.model.positional_encoding(x, coords)
-        plt.figure()
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-        plt.imshow(pe.detach().cpu().numpy(), cmap='viridis', aspect='auto')
-        plt.colorbar()
-        plt.title('Positional Encoding')
-        wandb.log({f"plots/Positional Encoding": wandb.Image(fig)})
-        plt.close()
 
     def make_batch_figs(self, x, y, y_hat, coords_x, coords_y, tag='', n_examples=5):
         if n_examples > x.shape[0]:
@@ -310,9 +295,7 @@ class FNOModule(pl.LightningModule):
                 (coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_true[idx_val].flatten(), (y1i, y2i), method='linear')
             y_pred_i = griddata((coords_y[idx_val, 0, :, :].flatten(), coords_y[idx_val, 1, :, :].flatten()), y_pred[idx_val].flatten(), (y1i, y2i), method='linear')
 
-            #y_true_i_norm = np.sqrt((1/(y_true_i.shape[0]*y_true_i.shape[1]))*np.sum(y_true_i**2))
             y_rel_diff_i = np.abs(y_pred_i - y_true_i) #/ np.abs(y_true_i + 1e-5)
-            #y_rel_diff_i = np.abs(y_pred_i - y_true_i)
 
             #plot median and worst case relative error
 
@@ -333,7 +316,6 @@ class FNOModule(pl.LightningModule):
                         f'Prediction (Index {idx_val})')
                 elif i == 3:
                     # plot absolute relative error in log scale (difference divided by ground truth)
-                    #im = ax.imshow(np.log10(y_rel_diff_i + 1e-10), cmap='viridis', vmin=-5, vmax=3)
                     im = ax.imshow(np.log10(y_rel_diff_i), cmap='inferno', vmin=-7,vmax=1)
                     ax.set_title(
                         f'Pointwise Error (Index {idx_val})')
@@ -447,13 +429,10 @@ class FNOModule(pl.LightningModule):
     def test_step(self, batch, batch_idx, dataloader_idx=0):
 
         dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
-        im_size = self.trainer.datamodule.test_im_sizes[dataloader_idx]
-        #patch_size = self.trainer.datamodule.test_patch_sizes[dataloader_idx]
-        x, y, coords_x, coords_y, x_train_fourier_normalizer = batch
-        # Modify model's im_size for testing
-        #self.model.set_im_size(im_size,patch_size)
+        x, y, coords_x, coords_y = batch
 
-        y_hat = self.forward(x, y, coords_x, coords_y, x_train_fourier_normalizer)
+
+        y_hat = self.forward(x, coords_x)
 
 
         loss = F.mse_loss(y_hat, y)
@@ -530,7 +509,6 @@ class FNOModule(pl.LightningModule):
             # Retrieve the samples using indices, 
             ###################################################
             ###################################################
-            # !!!!!terrible code!!!!!
             for batch_idx, batch in enumerate(test_dataloader):
                 if batch_idx == median_batch_idx:
                     median_batch = batch

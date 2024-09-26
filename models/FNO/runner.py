@@ -35,8 +35,6 @@ class Runner:
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             tune_initial_lr=False,
             patch=False,
-            patch_size=None,
-            fourier = False,
             modes = None,
             im_size=None,
             d_model=128,
@@ -137,14 +135,11 @@ class Runner:
 
 
         # Initialize the trainer
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                      **self.trainer_hyperparams)
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                     **self.trainer_hyperparams, plugins="deepspeed_stage_2", precision=16, devices=2)
-        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-        #                      **self.trainer_hyperparams, accelerator='gpu', devices=4)
         trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
-                              **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=2)
+                              **self.trainer_hyperparams)
+        #if using ddp, need to use torch.view_as_real and torch.view_as_complex for any fft method in transformer_custom.py
+        #trainer = Trainer(logger=wandb_logger, callbacks=callbacks,
+        #                      **self.trainer_hyperparams, accelerator='gpu', strategy='ddp', devices=2)
 
         # Tune the model
         tuner = Tuner(trainer)

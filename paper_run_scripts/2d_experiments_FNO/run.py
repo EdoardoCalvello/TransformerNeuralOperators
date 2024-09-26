@@ -26,7 +26,6 @@ exp_dict = {
     'test_patch_sizes': [[64,48,32,24,16]],
     'batch_size': [8],
     'dyn_sys_name': ['darcy_discontinuous'],
-    'patch': [True],
     # optimizer settings
     'learning_rate': [1e-3,1e-4],
     'dropout': [1e-4],

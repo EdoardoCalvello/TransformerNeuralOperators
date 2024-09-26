@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 import copy
 
 from models.transformer_custom import SpectralConv2d
@@ -80,25 +79,12 @@ class FNO(torch.nn.Module):
         self.size_row = im_size
         self.size_col = im_size 
         self.linear_out = nn.Linear(d_model,1)
-            
-
-    def set_im_size(self, new_im_size, new_patch_size):
-        # Update the im_size attribute
-        self.patch_size = new_patch_size
-        self.im_size = new_im_size
-        self.size_row = new_im_size
-        self.size_col = new_im_size
-        self.num_patches = (self.size_row*self.size_col)//(self.patch_size**2)
-
-        #for encoder_layer in self.encoder.layers:
-            #encoder_layer.self_attn.scaled_dot_product_attention.scale[0]=torch.tensor(new_im_size**2)
-            #encoder_layer.self_attn.im_size=new_im_size
 
 
-    def forward(self, x, y=None, coords_x=None, coords_y=None, x_train_fourier_normalizer=None):
+    def forward(self, x, y=None, coords_x=None, coords_y=None):
 
 
-        residual = x.to(torch.float32)
+        #residual = x.to(torch.float32)
         x = torch.unsqueeze(x, 1) # (batch_size, 1, rows, cols)
         coords_x = coords_x.squeeze(2) #(domain_dim, rows, cols)
         coords_x = coords_x.repeat(x.shape[0],1,1,1) # (batch_size, domain_dim, rows, cols)
