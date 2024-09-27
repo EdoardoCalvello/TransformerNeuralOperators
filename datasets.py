@@ -258,7 +258,7 @@ class ControlledODE(DynSys):
         return xyz0
 
 class Lorenz63(DynSys):
-    def __init__(self, state_dim=3, sigma=10, rho=28, beta=8/3):
+    def __init__(self, state_dim=3, sigma=10, rho=28, beta=8/3, params=None):
         """
         Initializes a Lorenz63 dynamical system.
 
@@ -307,7 +307,7 @@ class Lorenz63(DynSys):
         return xyz0
 
 class Rossler(DynSys):
-    def __init__(self, state_dim=2, a=0.2, b=0.2, c=5.7):
+    def __init__(self, state_dim=2, a=0.2, b=0.2, c=5.7,params=None):
         """
         Initialize the Rossler dynamical system.
 

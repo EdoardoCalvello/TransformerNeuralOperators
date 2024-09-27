@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../../')
-from models.SimpleEncoderContinuous.runner import Runner
+from models.TNO.runner import Runner
 from utils import dict_combiner
 import argparse
 
@@ -14,7 +14,7 @@ args = parser.parse_args()
 exp_dict = {
     'project_name': [args.project_name],
     # data settings
-    'n_trajectories_train': [10000], # smaller dataset for debugging
+    'n_trajectories_train': [10000], 
     'n_trajectories_val': [2000],
     'n_trajectories_test': [2000],
     'T': [2],
