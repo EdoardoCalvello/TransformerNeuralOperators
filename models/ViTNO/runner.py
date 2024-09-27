@@ -8,7 +8,7 @@ from pytorch_lightning.tuner import Tuner
 
 # Import custom modules
 from datasets import MetaDataModule
-from models.ViT.ViT_lightning import SimpleEncoderModule
+from models.ViTNO.ViTNO_lightning import SimpleEncoderModule
 
 class Runner:
     def __init__(self,
@@ -35,17 +35,12 @@ class Runner:
             lr_scheduler_params={'patience': 2, 'factor': 0.1},
             tune_initial_lr=False,
             use_transformer=True,
-            use_positional_encoding='continuous',
-            append_position_to_x=False,
             patch=False,
             patch_size=None,
-            fourier = False,
             modes = None,
             im_size=None,
             smoothing=False,
             smoothing_modes=32,
-            pos_enc_coeff=2, # coefficient for positional encoding
-            include_y0_input=False,
             do_layer_norm=True,
             norm_first=False,
             d_model=128,
