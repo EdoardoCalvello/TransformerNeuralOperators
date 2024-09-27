@@ -38,7 +38,6 @@ class SimpleEncoder(torch.nn.Module):
         self.smoothing = smoothing
         self.smoothing_modes = smoothing_modes
 
-        self.set_positional_encoding()
 
 
         encoder_layer = TransformerEncoderLayer_ViTNO(
