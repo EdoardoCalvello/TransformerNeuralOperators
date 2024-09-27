@@ -8,7 +8,7 @@ from pytorch_lightning.tuner import Tuner
 
 # Import custom modules
 from datasets import MetaDataModule
-from models.SimpleEncoder.SimpleEncoder_lightning import SimpleEncoderModule
+from models.Transformer.Transformer_lightning import SimpleEncoderModule
 
 class Runner:
     def __init__(self,
