@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from scipy.interpolate import griddata
 
-from models.SimpleEncoder.SimpleEncoder_lightning import SimpleEncoderModule
+from models.FANO.FANO_lightning import SimpleEncoderModule
 #from models.FNO.FNO_lightning import FNOModule
 from datasets import MetaDataModule
 
@@ -71,15 +71,14 @@ predictions = []
 # Iterate through the test data and make predictions, computing errors
 
 for sample in test_data_loader.dataset:
-    x, y, coords_x, coords_y, x_train_fourier_normalizer = sample
+    x, y, coords_x, coords_y = sample
     x = torch.from_numpy(x).to(device)
     y = torch.from_numpy(y).to(device)
     coords_x = torch.from_numpy(coords_x).to(device)
     coords_y = torch.from_numpy(coords_y).to(device)
     with torch.no_grad():
         # Forward pass to get predictions
-        y_pred = model(x.unsqueeze(0), y=y.unsqueeze(0),
-                        coords_x=coords_x.unsqueeze(0), coords_y=coords_y.unsqueeze(0), x_train_fourier_normalizer=None)
+        y_pred = model(x.unsqueeze(0), coords_x=coords_x.unsqueeze(0))
         
         #print(y_pred.shape)
         
@@ -109,8 +108,8 @@ min_error_idx = np.argmax(errors)
 min_error = errors[min_error_idx]
 
 # Retrieve the corresponding data for these samples
-x_median, y_median, coords_x_median, coords_y_median, _ = test_data_loader.dataset[median_idx]
-x_min, y_min, coords_x_min, coords_y_min, _ = test_data_loader.dataset[min_error_idx]
+x_median, y_median, coords_x_median, coords_y_median = test_data_loader.dataset[median_idx]
+x_min, y_min, coords_x_min, coords_y_min = test_data_loader.dataset[min_error_idx]
 
 y_pred_min = predictions[min_error_idx]
 y_pred_median = predictions[median_idx]
