@@ -371,7 +371,7 @@ class MultiheadAttention_ViTNO(nn.Module):
         self.W_q = nn.Linear(d_model, nhead*self.d_k)
         self.W_k = nn.Linear(d_model, nhead*self.d_k)
         self.W_v = nn.Linear(d_model, nhead*self.d_k)
-        self.scaled_dot_product_attention = ScaledDotProductAttention_ViT(self.d_k, im_size, dropout=dropout)
+        self.scaled_dot_product_attention = ScaledDotProductAttention_ViTNO(self.d_k, im_size, dropout=dropout)
         self.W_o = nn.Linear(nhead*self.d_k, d_model)
 
     def split_heads(self, x):
