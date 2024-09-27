@@ -359,9 +359,9 @@ class SpectralConv2d_in(nn.Module):
         return x
 
 
-class MultiheadAttention_ViT(nn.Module):
+class MultiheadAttention_ViTNO(nn.Module):
     def __init__(self, d_model, nhead, im_size, dropout=0.1):
-        super(MultiheadAttention_ViT, self).__init__()
+        super(MultiheadAttention_ViTNO, self).__init__()
         assert d_model % nhead == 0, "d_model must be divisible by nhead"
 
         self.d_model = d_model
@@ -393,9 +393,9 @@ class MultiheadAttention_ViT(nn.Module):
         output = self.W_o(self.combine_heads(attn_output))
         return output
 
-class ScaledDotProductAttention_ViT(nn.Module):
+class ScaledDotProductAttention_ViTNO(nn.Module):
     def __init__(self, d_k, im_size, dropout=0.1):
-        super(ScaledDotProductAttention_ViT, self).__init__()
+        super(ScaledDotProductAttention_ViTNO, self).__init__()
         #d_K* or just d_K?
         self.scale = nn.Parameter(torch.sqrt(torch.FloatTensor([((im_size)**4)])), requires_grad=False)
         self.dropout = nn.Dropout(dropout)
@@ -415,10 +415,10 @@ class ScaledDotProductAttention_ViT(nn.Module):
 
         return output
 
-class TransformerEncoderLayer_ViT(nn.Module):#
+class TransformerEncoderLayer_ViTNO(nn.Module):#
 
     def __init__(self, d_model, nhead, dropout=0.1, activation="relu", norm_first=True, do_layer_norm=True, dim_feedforward=2048, modes=None, patch_size=1, im_size=64, batch_first=True):
-        super(TransformerEncoderLayer_ViT, self).__init__()
+        super(TransformerEncoderLayer_ViTNO, self).__init__()
 
         # Self-attention layer
         if modes is None:
@@ -428,7 +428,7 @@ class TransformerEncoderLayer_ViT(nn.Module):#
             modes1 = modes[0]
             modes2 = modes[1]
         #or im_size?
-        self.self_attn = MultiheadAttention_ViT(d_model, nhead, im_size, dropout=dropout)
+        self.self_attn = MultiheadAttention_ViTNO(d_model, nhead, im_size, dropout=dropout)
 
         # Feedforward layer
         self.linear1 = nn.Linear(d_model, dim_feedforward)
