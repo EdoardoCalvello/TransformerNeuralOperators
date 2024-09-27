@@ -82,10 +82,8 @@ class SimpleEncoderModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
 
-        if self.domain_dim == 1:
-            x, y, coords_x, coords_y = batch
-        else:
-            x, y, coords_x, coords_y,_ = batch
+
+        x, y, coords_x, coords_y = batch
         y_hat = self.forward(x, y, coords_x, coords_y)
         loss = F.mse_loss(y_hat, y)
         self.log("loss/train/mse", loss, on_step=False,
@@ -136,10 +134,8 @@ class SimpleEncoderModule(pl.LightningModule):
                      on_step=False, on_epoch=True, prog_bar=False)
 
     def validation_step(self, batch, batch_idx):
-        if self.domain_dim == 1:
-            x, y, coords_x, coords_y = batch
-        else:
-            x, y, coords_x, coords_y,_ = batch
+
+        x, y, coords_x, coords_y = batch
         y_hat = self.forward(x, y, coords_x, coords_y)
         loss = F.mse_loss(y_hat, y)
         self.log("loss/val/mse", loss, on_step=False,
@@ -326,10 +322,7 @@ class SimpleEncoderModule(pl.LightningModule):
 
         dt = self.trainer.datamodule.test_sample_rates[dataloader_idx]
 
-        if self.domain_dim == 1:
-            x, y, coords_x, coords_y = batch
-        else:
-            x, y, coords_x, coords_y,_ = batch
+        x, y, coords_x, coords_y = batch
         y_hat = self.forward(x, y, coords_x, coords_y)
         loss = F.mse_loss(y_hat, y)
         self.log(f"loss/test/mse/dt{dt}", loss, on_step=False,
