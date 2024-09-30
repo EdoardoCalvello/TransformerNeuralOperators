@@ -1,4 +1,7 @@
 ## Transformer Neural Operators
+
+![Transformer Neural Operator Architecture](./images/TNO.png)
+
 Transformer Neural Operator architechtures and experiments from the paper "Continuum Attention for Neural Operators" (https://arxiv.org/abs/2406.06486)
 
 ```
@@ -43,3 +46,4 @@ $ conda env create -f transformers_cuda11.8.yml
 $ conda env create -f transformers.yml
 ```
 
+## Quick-Start Guide
